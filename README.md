@@ -202,7 +202,7 @@ jobs:
 </details>
 <br/>
 
-> :bulb: - The above example uses multiple jobs definition which I will further elaborate at the [Flaw Control section](##Flaw-Control)
+> :bulb: - The above example uses multiple jobs definition which I will further elaborate at the [Flow Control section](##flow-control)
 
 ### Pipeline Scan
 #### Script
@@ -273,7 +273,7 @@ Import the findings using different techniques
 - Import Pipeline Findings as Pull Request message
   - see [basic example](https://github.com/Lerer/veracode-pipeline-PR-comment). A more advance example can be done by further manipulating the text output
 
-## Flaw Control
+## Flow Control
 
 Mainly used as GitHub build-in characteristic
 
