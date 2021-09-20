@@ -14,8 +14,8 @@ The base of our integration is achievable via script running within the workflow
 
 ### Upload and Scan 
 #### Script
-A basic script using a wrapper is documented __[here](https://help.veracode.com/r/r_uploadandscan)__ and looks as follow:
-`java -jar vosp-api-wrapper-java<version>.jar -action uploadandscan -vid <Veracode API ID> -vkey <Veracode API key> -appname myapp -createprofile true -teams myteam -criticality VeryHigh -sandboxname mysandbox -createsandbox true -version <unique version> -scantimeout 30 -selectedpreviously true -filepath /workspace/myapp.jar`
+A basic script using a wrapper is documented __[at Veracode help center](https://help.veracode.com/r/r_uploadandscan)__ and looks as follow:
+`java -jar vosp-api-wrapper-java<version>.jar -action uploadandscan -vid <Veracode API ID> -vkey <Veracode API key> -appname myapp -createprofile true -teams myteam -criticality VeryHigh -sandboxname sandboxA -createsandbox true -version <unique version> -scantimeout 30 -selectedpreviously true -filepath /workspace/myapp.jar`
 
 within a GitHub workflow we will need to download the latest version and run the above script.
 <details>
@@ -62,15 +62,155 @@ jobs:
 </details>
 
 
-#### [Action](https://github.com/marketplace/actions/veracode-upload-and-scan)
+#### GitHub Action
+An easier way to incorporate the upload and scan into a workflow is using Veracode supported __[upload-and-scan GitHub action](https://github.com/marketplace/actions/veracode-upload-and-scan)__
+
+To authoring a workflow with the official action we will use the documentation in the action page
+<details>
+<summary>See example</summary>
+<p>
+
+```yaml
+name: Veracode Static Scan
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches: [ master, release/* ]
+  pull_request:
+    branches: [ master, develop, main, release/* ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: [ self-hosted, generic ]
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: Veracode Upload And Scan
+        uses: veracode/veracode-uploadandscan-action@0.2.1
+        with:
+          # appname
+          appname: ${{ github.repository }}
+          # createprofile
+          createprofile: true
+          # filepath
+          filepath: result.zip #Path to dlls/src/jars/wars....
+          # version
+          version: ${{ github.run_id }}
+          # vid
+          vid: ${{ secrets.VERACODE_ID }}
+          # vkey
+          vkey: ${{ secrets.VERACODE_KEY }}
+          # true or false
+          createsandbox: true
+          # name of the sandbox
+          sandboxname: sandboxA
+          # wait X minutes for the scan to complete
+          scantimeout: 0
+          # business criticality - policy selection
+          criticality: "High"
+```
+</p>
+</details>
+
+#### Align sandbox name with branch name (Optional)
+As you noticed in the above examples, the sandbox name for the scan was a fixed name. A fixed sandbox name is not maintainable as we probably want to scan different changes/versions in a different sandboxes.
+
+An alternative to that is to have the sandbox name as the Git branch name. In order to achieve this we can modify the workflow definition to include a step prior to the scan to save the branch name as an attribute and use it when we submit for scan.
+
+<details>
+<summary>See example</summary>
+<p>
+
+```yaml
+name: Veracode Static Scan
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches: [ master, release/* ]
+  pull_request:
+    branches: [ master, develop, main, release/* ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  generate-sandbox-name:
+    runs-on: [ self-hosted, generic ]
+    outputs:
+      sandbox-name: ${{ steps.set-sandbox-name.outputs.sandbox-name }}
+    steps:
+      # Creates the sandbox(logical release descriptive status of current branch)
+      - id: set-sandbox-name
+        name: set-sandbox-name
+        run: |
+          echo ${{ github.head_ref }}
+          branchName="${{ github.head_ref }}"
+          if [[ -z "$branchName" ]]; then
+            branchName="${{ github.ref }}"
+          fi
+          
+          if [[ $branchName == *"master"* ]]; then
+          echo "::set-output name=sandbox-name::Master"
+          elif [[ $branchName == *"main"* ]]; then
+          echo "::set-output name=sandbox-name::Main"
+          elif [[ $branchName == *"elease/"* ]]; then
+          echo "::set-output name=sandbox-name::$branchName"
+          else
+          echo "::set-output name=sandbox-name::Development"
+          fi        
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: [ self-hosted, generic ]
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: Veracode Upload And Scan
+        uses: veracode/veracode-uploadandscan-action@0.2.1
+        with:
+          # appname
+          appname: ${{ github.repository }}
+          # createprofile
+          createprofile: true
+          # filepath
+          filepath: result.zip #Path to dlls/src/jars/wars....
+          # version
+          version: ${{ github.run_id }}
+          # vid
+          vid: ${{ secrets.VERACODE_ID }}
+          # vkey
+          vkey: ${{ secrets.VERACODE_KEY }}
+          # true or false
+          createsandbox: true
+          # name of the sandbox
+          sandboxname: "${{needs.generate-sandbox-name.outputs.sandbox-name}}"
+          # wait X minutes for the scan to complete
+          scantimeout: 0
+          # business criticality - policy selection
+          criticality: "High"
+```
+</p>
+</details>
+<br/>
+
+> :bulb: - The above example uses multiple jobs definition which I will further elaborate at the [Flaw Control section](##Flaw-Control)
 
 ### Pipeline Scan
 #### Script
-The basic script for Pipeline documented __[here](https://help.veracode.com/r/Run_a_Pipeline_Scan_from_the_Command_Line)__ and look as follow.
+The basic script for Pipeline documented __[at the Veracode help center](https://help.veracode.com/r/Run_a_Pipeline_Scan_from_the_Command_Line)__ and in its most basic form it looks as follow.
 
 `java -jar pipeline-scan.jar --file <file.zip>`
 
-The above example is the most basic scan option and many other options documented __[here](https://help.veracode.com/r/r_pipeline_scan_commands)__. 
+A more advanced and context aware options are documented __[here](https://help.veracode.com/r/r_pipeline_scan_commands)__. 
 
 within a Github workflow the same scan script will be put as a step right after downloading the Pipeline Scan code itself
 <details>
@@ -111,14 +251,14 @@ jobs:
         continue-on-error: true
         run: java -jar ./dls/pipeline-scan.jar --veracode_api_id "${{secrets.VERACODE_ID}}" --veracode_api_key "${{secrets.VERACODE_KEY}}" --file "result.zip" -jo true -so true  
 ```
-
 </p>      
-</details>     
-       
+</details> 
+<br/>
 
+> :point_right: - it is recommended to include the application name and if possible the sandbox or branch name in the pipeline scan attribute to help with the platform reports. [-p \<project name/repository name\>] [-r \<project ref/branch name\>]
 
 ### Agent-Based SCA
-  - Script
+#### Script
 
 ## Import Findings
 
