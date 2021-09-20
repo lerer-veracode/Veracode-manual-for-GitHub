@@ -202,7 +202,7 @@ jobs:
 </details>
 <br/>
 
-> :bulb: - The above example uses multiple jobs definition which I will further elaborate at the [Flow Control section](##flow-control)
+> :bulb: - The above example uses multiple jobs definition which I will further elaborate at the [Flow Control section](#flow-control)
 
 ### Pipeline Scan
 #### Script
@@ -259,6 +259,57 @@ jobs:
 
 ### Agent-Based SCA
 #### Script
+The basic script for Agent-Based SCA is documented at the Veracode help center and in its most basic form on a PC it looks as follow.
+
+~~java -jar pipeline-scan.jar --file <file.zip>~~
+
+~~A more advanced and context aware options are documented here.~~
+
+For Agent-Based SCA (security scanning of 3<sup>rd</sup> party components) solution we have a very simple script which can easily put in a workflow.
+
+
+
+<details>
+<summary>See example</summary>
+<p>
+
+```yaml
+name: SCA on change in dependencies definition
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push where package-lock.json modifies or pull request events
+  push:
+    paths:
+      - 'package-lock.json'
+  pull_request:
+  
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # The workflow consist of a single job to quickly scan dependencies
+  SCA_Scan:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Check out repo 
+        uses: actions/checkout@v2
+
+      # run quick scan on the project
+      - name: SCA Scan
+        env: 
+          SRCCLR_API_TOKEN: ${{ secrets.SRCCLR_API_TOKEN }}
+        run: curl -sSL https://download.sourceclear.com/ci.sh | sh -s scan --quick
+```
+</p>      
+</details> 
+<br/>
+
+> :bulb: The above example script used a very specific trigger for changes in TypeScript/JavaScript packaging file __`package-lock.json`__. Different programming language may result in different trigger __`on`__ scan attributes
 
 ## Import Findings
 
