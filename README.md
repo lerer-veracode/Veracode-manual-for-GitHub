@@ -271,7 +271,6 @@ As all of our integrations, more advanced scan options are documented across our
 For Agent-Based SCA (security scanning of 3<sup>rd</sup> party components) solution we have a very simple script which can easily put in a workflow.
 
 
-
 <details>
 <summary>See example</summary>
 <p>
@@ -318,7 +317,7 @@ jobs:
 
 With our different Static scanning, we now have the ability to import the findings using different techniques
 
-#### Visualize Pipeline Findings as Pull Request comment
+### Visualize Pipeline Findings as Pull Request comment
 The basic form of 'import' is not really an import but more of a surfacing the result. When the Pipeline Scan run within a workflow, all messages are kept inside the workflow. However, when we are using the scan as part of a Pull Request, we may want to copy the Scan output as a comment in the Pull Request main `Conversation` tab.
 
 to do that we can utilize build-in GitHub scripting functionality. (This is not a __Veracode__ function)
@@ -400,8 +399,6 @@ name: Pipeline Scan with creation of GitHub Security issues
 on:
   # Triggers the workflow on push where package-lock.json modifies or pull request events
   push:
-    paths:
-      - 'package-lock.json'
   pull_request:
   
   # Allows you to run this workflow manually from the Actions tab
@@ -444,24 +441,45 @@ jobs:
 ```
 </p>      
 </details> 
-<br/>
+
 
 ### Upload and Scan / Pipeline Scan as Issues
-For every repository there is an `Issues` section. That is where
-  - [Action](https://github.com/marketplace/actions/veracode-scan-results-to-github-issues)
+Lastly, for organization who don't have the license for 'GitHub Advanced Security' or simply don't want to use the `Security` issues, they can import the finding as any other issue in the `Issues` section. 
 
+That is achieve by an __[Action](https://github.com/marketplace/actions/veracode-scan-results-to-github-issues)__.
+
+<details>
+<summary>Screenshots</summary>
+<p>
+<p align="center">
+  <img src="/media/img/issues-action-pipeline.png" width="600px" alt="Pipeline scan output as GitHub Issue"/>
+</p>
+<br/>
+<p align="center">
+  <img src="/media/img/issues-action-policy.png" width="600px" alt="Policy scan output as GitHub Issue"/>
+</p>
+</p>
+</details>
 
 ## Flow Control
 
-Mainly used as GitHub build-in characteristic
+This section is mostly around utilizing GitHub build-in functionality to get a desire process 
 
-- Branch protection (for Pull Request)
-  - See [Protected Branches](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/about-protected-branches) in GitHub for more advance features
-- Workflow Checks
-  - Separate to Jobs or completely different workflows  
-- Jobs and Steps condition
-  - Make sure a step/job is running only if previous step/job succeed
-- Trigger
+### Branch protection (for Pull Request)
+__[Protected Branches](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/about-protected-branches)__ can help answer a (repeated) question - How can we block a Pull Request for failed scan.
+
+The answer is in a __['Require Status Checks Before Merging' section](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/about-protected-branches#require-status-checks-before-merging)__ in the above manual.
+
+For those with the right GitHub permissions, here are the __[Step-by-Step instructions](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/managing-a-branch-protection-rule)__ for setting up the Branch Protection Rules
+
+If we enable branch protection, any failed `job` within a workflow can prevent pull request from being approved  :arrow_right: We then need to make sure a failed Scan is also failing the job in the workflow:exclamation:
+
+### Splitting into Jobs - Adding Checks
+- Separate to Jobs or completely different workflows
+
+### Workflow, Jobs and Steps condition and triggers
+  - Make sure a step/job is running only if previous step/job succeed    
+
   - You can define very specific triggers to run partial scan for specific things - see example for SCA on JS      
 
 ## Scaling in an Organization
@@ -473,10 +491,7 @@ Instead of rewriting everything for every BU/Team/repo use shared workflow by cr
 
 In addition, you can think on shared Secret - but keep in mind Pipeline Scan throughput to not exceed 6 scans/min
 
-### Options for Pipeline scan baseline
-Pipeline scan provides the ability to use baseline acting as the "approved mitigations" or accepted risk condition which instruct the Pipeline Scan to only highlight finding other than the ones in the baseline.
-
-### Auto Pull request after merge into Main/Master
+### Auto Pull request for vulnerable dependencies after merge into Main/Master
 Right after a pull request is approved, the target branch will issue a `push` event (as new code is merged). This is an opportunity to run a scan to auto create Pull request based on the Vulnerable Methods found in a scan.
 
 __[Veracode SCA Auto pull request](https://help.veracode.com/r/t_configure_auto_pr)__ only apply to [supported languages](https://help.veracode.com/r/Understanding_Automatic_Pull_Request_Support): Java, Python, Ruby, JavaScript, Objective-C, and PHP 
@@ -531,3 +546,11 @@ jobs:
 </details> 
 <br/>
 
+### Options for Pipeline scan baseline
+Pipeline scan provides the ability to use baseline acting as the "approved mitigations" or accepted risk condition which instruct the Pipeline Scan to only highlight finding other than the ones in the baseline.
+
+#### Commit Baseline into a Repository
+
+#### Save Baseline as an Artifact
+
+### Shared Downloaded Policies for Pipeline Scan
