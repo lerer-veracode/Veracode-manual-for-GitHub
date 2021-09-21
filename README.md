@@ -545,7 +545,7 @@ jobs:
 
 <br/>
 <p align="center">
-  <img src="/media/img/SCA-auto-PR.png" width="700px" alt="Policy scan output as GitHub Issue"/>
+  <img src="/media/img/auto-pr-sca.png" width="700px" alt="Policy scan output as GitHub Issue"/>
 </p>
 
 </p>      
