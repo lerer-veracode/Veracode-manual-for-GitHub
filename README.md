@@ -14,7 +14,8 @@ The base of our integration is achievable via script running within the workflow
 
 ### Upload and Scan 
 #### Script
-A basic script using a wrapper is documented __[at Veracode help center](https://help.veracode.com/r/r_uploadandscan)__ and looks as follow:
+A basic script using a wrapper is documented __[at Veracode help center](https://help.veracode.com/r/r_uploadandscan)__ and looks as follow:   
+
 `java -jar vosp-api-wrapper-java<version>.jar -action uploadandscan -vid <Veracode API ID> -vkey <Veracode API key> -appname myapp -createprofile true -teams myteam -criticality VeryHigh -sandboxname sandboxA -createsandbox true -version <unique version> -scantimeout 30 -selectedpreviously true -filepath /workspace/myapp.jar`
 
 within a GitHub workflow we will need to download the latest version and run the above script.
@@ -259,11 +260,13 @@ jobs:
 
 ### Agent-Based SCA
 #### Script
-The basic script for Agent-Based SCA is documented at the Veracode help center and in its most basic form on a PC it looks as follow.
+The basic script for Agent-Based SCA CLI (Command line interface) is documented [at the Veracode help center](https://help.veracode.com/r/Using_the_Veracode_SCA_Command_Line_Agent)
 
-~~java -jar pipeline-scan.jar --file <file.zip>~~
+The basic form on a PC using cURL is usually the simplest way to be use in a CI workflow.
 
-~~A more advanced and context aware options are documented here.~~
+`curl -sSL https://download.sourceclear.com/install | sh`
+
+As all of our integrations, more advanced scan options are documented across our [help center](https://help.veracode.com/r/c_sc_agent_usage)
 
 For Agent-Based SCA (security scanning of 3<sup>rd</sup> party components) solution we have a very simple script which can easily put in a workflow.
 
@@ -313,16 +316,140 @@ jobs:
 
 ## Import Findings
 
-Import the findings using different techniques
+With our different Static scanning, we now have the ability to import the findings using different techniques
 
-- Upload and Scan / Pipeline Scan as Issues
+#### Visualize Pipeline Findings as Pull Request comment
+The basic form of 'import' is not really an import but more of a surfacing the result. When the Pipeline Scan run within a workflow, all messages are kept inside the workflow. However, when we are using the scan as part of a Pull Request, we may want to copy the Scan output as a comment in the Pull Request main `Conversation` tab.
+
+to do that we can utilize build-in GitHub scripting functionality. (This is not a __Veracode__ function)
+
+See __[basic example](https://github.com/Lerer/veracode-pipeline-PR-comment)__
+
+<details>
+<summary>Another inline example</summary>
+<p>
+
+```yaml
+name: Veracode SAST Scan
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  pull_request:
+    branches: [ master, develop, main, release/* ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  static_pipeline_scan:
+    # The type of runner that the job will run on
+    runs-on: [ self-hosted, generic ]
+    
+    steps:
+      - name: create dir prior
+        run: |
+          mkdir dls
+      - name: Download pipeline code
+        working-directory: ./dls/
+        run: |
+          curl https://downloads.veracode.com/securityscan/pipeline-scan-LATEST.zip -o veracode.zip
+          unzip veracode.zip
+      - name: Run Pipeline Scanner
+        continue-on-error: true
+        run: java -Dpipeline.debug=true -jar ./dls/pipeline-scan.jar --veracode_api_id "${{secrets.VERACODE_ID}}" --veracode_api_key "${{secrets.VERACODE_KEY}}" --file "result.zip" -jo true -so true
+      - id: get-comment-body
+        if: ${{ github.head_ref != '' }}
+        run: |
+          body=$(cat results.txt)
+          body="${body//$'====================\n--------------------------'/'====================<details>'}"
+          body="${body//$'--------------------------\nF'/'</details><details><summary>F'}"
+          body="${body//$'.\n--------------------------'/'.</summary>'}"                             
+          body="${body//$'==========================\nFA'/'</details>==========================<br>FA'}"
+          body="${body//$'\n'/'<br>'}"
+          echo ::set-output name=body::$body
+      - name: Add comment to PR
+        if: ${{ github.head_ref != '' }}
+        uses: peter-evans/create-or-update-comment@v1
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: ${{ steps.get-comment-body.outputs.body }}
+          reactions: rocket
+```
+</p>
+</details>
+</br>
+ 
+> :bulb: A different output can be done by further/differently manipulating the text output
+
+### Pipeline Scan as GitHub Security issues
+For customers with Enterprise Accounts with license for 'GitHub Advanced Security', we can import our Pipeline Scan result to the dedicated `Security` issues.
+
+That option is available via our official __[action](https://github.com/marketplace/actions/veracode-static-analysis-pipeline-scan-and-sarif-import)__
+
+
+<details>
+<summary>See example</summary>
+<p>
+
+```yaml
+name: Pipeline Scan with creation of GitHub Security issues
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push where package-lock.json modifies or pull request events
+  push:
+    paths:
+      - 'package-lock.json'
+  pull_request:
+  
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # The workflow consist of a single job to quickly scan dependencies
+  Pipeline_to_Security_Issues:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: create dir prior
+        run: |
+          mkdir dls
+      - name: Download pipeline code
+        working-directory: ./dls/
+        run: |
+          curl https://downloads.veracode.com/securityscan/pipeline-scan-LATEST.zip -o veracode.zip
+          unzip veracode.zip
+      - name: Run Pipeline Scanner
+        continue-on-error: true
+        run: java -jar ./dls/pipeline-scan.jar --veracode_api_id "${{secrets.VERACODE_ID}}" --veracode_api_key "${{secrets.VERACODE_KEY}}" --file "result.zip" -jo true -so true 
+      - name: Convert pipeline scan output to SARIF format
+        id: convert Pipeline results to SARIF format 
+        uses: Veracode/veracode-pipeline-scan-results-to-sarif@v0.1.2
+        with:
+          pipeline-results-json: results.json
+          output-results-sarif: veracode-results.sarif
+          source-base-path-1: "^com/veracode:src/main/java/com/veracode"
+          source-base-path-2: "^WEB-INF:src/main/webapp/WEB-INF"
+          finding-rule-level: "3:1:0"
+
+      - name: upload SARIF file to repository
+        uses: github/codeql-action/upload-sarif@v1
+        with: # Path to SARIF file relative to the root of the repository
+          sarif_file: veracode-results.sarif
+```
+</p>      
+</details> 
+<br/>
+
+### Upload and Scan / Pipeline Scan as Issues
+For every repository there is an `Issues` section. That is where
   - [Action](https://github.com/marketplace/actions/veracode-scan-results-to-github-issues)
 
-- Pipeline Scan as GitHub Security issues
-  - [action](https://github.com/marketplace/actions/veracode-static-analysis-pipeline-scan-and-sarif-import)
-
-- Import Pipeline Findings as Pull Request message
-  - see [basic example](https://github.com/Lerer/veracode-pipeline-PR-comment). A more advance example can be done by further manipulating the text output
 
 ## Flow Control
 
@@ -348,3 +475,59 @@ In addition, you can think on shared Secret - but keep in mind Pipeline Scan thr
 
 ### Options for Pipeline scan baseline
 Pipeline scan provides the ability to use baseline acting as the "approved mitigations" or accepted risk condition which instruct the Pipeline Scan to only highlight finding other than the ones in the baseline.
+
+### Auto Pull request after merge into Main/Master
+Right after a pull request is approved, the target branch will issue a `push` event (as new code is merged). This is an opportunity to run a scan to auto create Pull request based on the Vulnerable Methods found in a scan.
+
+__[Veracode SCA Auto pull request](https://help.veracode.com/r/t_configure_auto_pr)__ only apply to [supported languages](https://help.veracode.com/r/Understanding_Automatic_Pull_Request_Support): Java, Python, Ruby, JavaScript, Objective-C, and PHP 
+
+Make sure to read the instructions as it involves [creation of Github token](https://help.veracode.com/r/t_configure_pr_github) 
+
+<details>
+<summary>See example</summary>
+<p>
+
+```yaml
+name: Auto Pull Request on SCA findings
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push where package-lock.json modifies or pull request events
+  push:
+    branches: [ master,main ]
+  
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # The workflow consist of a single job to quickly scan dependencies
+  SCA_Scan for PR:
+    # The type of runner that the job will run on
+    runs-on: [ self-hosted, generic ]
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Check out repo 
+        uses: actions/checkout@v2
+
+      # run quick scan on the project
+      - name: SCA Scan
+        env: 
+          SRCCLR_API_TOKEN: ${{ secrets.SRCCLR_API_TOKEN }}
+          SRCCLR_SCM_TOKEN: ${{ secrets.SRCCLR_GITHUB_TOKEN }}
+          SRCCLR_SCM_TYPE: GITHUB
+          # PR on: methods
+          SRCCLR_PR_ON: low
+          SRCCLR_NO_BREAKING_UPDATES: true
+          SRCCLR_IGNORE_CLOSED_PRS: true
+          EXTRA_ARGS: '--recursive --update-advisor --pull-request --unmatched'
+        run: |
+          git config --global user.email "${{ secrets.USER_EMAIL }}"
+          git config --global user.name "${{ secrets.USER_NAME }}"
+          curl -sSL https://download.sourceclear.com/ci.sh | sh -s -- scan $EXTRA_ARGS
+```
+</p>      
+</details> 
+<br/>
+
