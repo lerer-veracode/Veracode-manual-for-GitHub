@@ -536,12 +536,18 @@ jobs:
           SRCCLR_PR_ON: low
           SRCCLR_NO_BREAKING_UPDATES: true
           SRCCLR_IGNORE_CLOSED_PRS: true
-          EXTRA_ARGS: '--recursive --update-advisor --pull-request --unmatched'
+          EXTRA_ARGS: '--update-advisor --pull-request --unmatched'
         run: |
           git config --global user.email "${{ secrets.USER_EMAIL }}"
           git config --global user.name "${{ secrets.USER_NAME }}"
           curl -sSL https://download.sourceclear.com/ci.sh | sh -s -- scan $EXTRA_ARGS
 ```
+
+<br/>
+<p align="center">
+  <img src="/media/img/SCA-auto-PR.png" width="700px" alt="Policy scan output as GitHub Issue"/>
+</p>
+
 </p>      
 </details> 
 <br/>
