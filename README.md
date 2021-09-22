@@ -362,10 +362,8 @@ jobs:
         if: ${{ github.head_ref != '' }}
         run: |
           body=$(cat results.txt)
-          body="${body//$'====================\n--------------------------'/'====================<details>'}"
-          body="${body//$'--------------------------\nF'/'</details><details><summary>F'}"
-          body="${body//$'.\n--------------------------'/'.</summary>'}"                             
-          body="${body//$'==========================\nFA'/'</details>==========================<br>FA'}"
+          body="${body//$'===\n---'/'===\n<details><summary>details</summary><p>\n---'}"
+          body="${body//$'---\n\n==='/'---\n</p></details>\n==='}"
           body="${body//$'\n'/'<br>'}"
           echo ::set-output name=body::$body
       - name: Add comment to PR
@@ -376,6 +374,10 @@ jobs:
           body: ${{ steps.get-comment-body.outputs.body }}
           reactions: rocket
 ```
+<br/>
+<p align="center">
+  <img src="/media/img/pr-github-comment-pipeline.png" width="700px" alt="Pipeline scan as comment in PR conversation"/>
+</p>
 </p>
 </details>
 </br>
@@ -439,7 +441,12 @@ jobs:
         with: # Path to SARIF file relative to the root of the repository
           sarif_file: veracode-results.sarif
 ```
-</p>      
+</p>
+<br/>
+<p align="center">
+  <img src="/media/img/security-issues-action-pipeline.png" width="700px" alt="Pipeline Scan results as Security issues"/>
+</p>
+
 </details> 
 
 
@@ -452,11 +459,11 @@ That is achieve by an __[Action](https://github.com/marketplace/actions/veracode
 <summary>Screenshots</summary>
 <p>
 <p align="center">
-  <img src="/media/img/issues-action-pipeline.png" width="600px" alt="Pipeline scan output as GitHub Issue"/>
+  <img src="/media/img/issues-action-pipeline.png" width="600px" alt="Issues created from Pipeline Scan results"/>
 </p>
 <br/>
 <p align="center">
-  <img src="/media/img/issues-action-policy.png" width="600px" alt="Policy scan output as GitHub Issue"/>
+  <img src="/media/img/issues-action-policy.png" width="600px" alt="Issues created from importing Static Scan results"/>
 </p>
 </p>
 </details>
@@ -473,6 +480,18 @@ The answer is in a __['Require Status Checks Before Merging' section](https://do
 For those with the right GitHub permissions, here are the __[Step-by-Step instructions](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/managing-a-branch-protection-rule)__ for setting up the Branch Protection Rules
 
 If we enable branch protection, any failed `job` within a workflow can prevent pull request from being approved  :arrow_right: We then need to make sure a failed Scan is also failing the job in the workflow:exclamation:
+<details>
+<summary>Screenshot from Github</summary>
+<p>
+<p align="center">
+  <img src="/media/img/branch-protection-rule.png" width="600px" alt="Github branch protection rule definition example"/>
+</p>
+<br/>
+<p align="center">
+  <img src="/media/img/pr-merge-branch-protection.png" width="600px" alt="PR blocked due to failed checks"/>
+</p>
+</p>
+</details>
 
 ### Splitting into Jobs - Adding Checks
 - Separate to Jobs or completely different workflows
