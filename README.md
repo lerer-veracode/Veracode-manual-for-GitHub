@@ -470,7 +470,7 @@ That is achieve by an __[Action](https://github.com/marketplace/actions/veracode
 
 ## Flow Control
 
-This section is mostly around utilizing GitHub build-in functionality to get a desire process 
+This section is mostly around utilizing GitHub build-in functionality to get a desire process. 
 
 ### Branch protection (for Pull Request)
 __[Protected Branches](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/about-protected-branches)__ can help answer a (repeated) question - How can we block a Pull Request for failed scan.
@@ -494,12 +494,134 @@ If we enable branch protection, any failed `job` within a workflow can prevent p
 </details>
 
 ### Splitting into Jobs - Adding Checks
-- Separate to Jobs or completely different workflows
+Another scenario is for example if we want to have parallel different scan processes which we want to get separate statuses - for example SCA and Static.
 
-### Workflow, Jobs and Steps condition and triggers
-  - Make sure a step/job is running only if previous step/job succeed    
+We can either create separate workflows or we can create a single flow with separate to Jobs. 
 
-  - You can define very specific triggers to run partial scan for specific things - see example for SCA on JS      
+The point is - every __job__ in a workflow will report a status as __check__ back.
+
+<details>
+<summary>Example for flaw output with multiple jobs</summary>
+<p align="center">
+  <img src="/media/img/workflow-multi-jobs.png" width="600px" alt="Github workflow summary with multiple jobs"/>
+</p>
+</details>
+
+<details>
+<summary>Workflow example with parallel Agent-Based and Pipeline Scan</summary>
+<p>
+
+```yaml
+name: Secure with multiple separate jobs
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push where package-lock.json modifies or pull request events
+  push:
+    branches: [test*]
+  pull_request:
+  
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  Build:
+    runs-on: [ubuntu-latest]
+    steps:
+      - name: Check out repo 
+        uses: actions/checkout@v2
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      - name: Build with Maven
+        working-directory: ./app/
+        run: mvn -B package --file pom.xml
+      - name: Zip Files
+        uses: vimtor/action-zip@v1
+        with:
+          files: ./app/target/verademo.war
+          dest: result.zip
+      - uses: actions/upload-artifact@v2 # Copy files from repository to docker container so the next uploadandscan action can access them.
+        with:
+          path: result.zip # See: https://github.com/actions/upload-artifact
+          name: built-zip
+        
+  generate-sandbox-name:
+    runs-on: [ ubuntu-latest ]
+    outputs:
+      sandbox-name: ${{ steps.set-sandbox-name.outputs.sandbox-name }}
+    steps:
+      # Creates the sandbox(logical release descriptive status of current branch)
+      - id: set-sandbox-name
+        name: set-sandbox-name
+        run: |
+          echo ${{ github.head_ref }}
+          branchName="${{ github.head_ref }}"
+          if [[ -z "$branchName" ]]; then
+            branchName="${{ github.ref }}"
+          fi
+          echo "::set-output name=sandbox-name::$branchName"
+  
+  Pipeline_Scan:
+    runs-on: ubuntu-latest
+    needs: [ Build, generate-sandbox-name ]
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: built-zip
+      - name: create dir prior
+        run: |
+          mkdir dls
+      - name: Download pipeline code
+        working-directory: ./dls/
+        run: |
+          curl https://downloads.veracode.com/securityscan/pipeline-scan-LATEST.zip -o veracode.zip
+          unzip veracode.zip
+      - name: Run Pipeline Scanner
+        run: java -jar ./dls/pipeline-scan.jar --veracode_api_id "${{secrets.VERACODE_ID}}" --veracode_api_key "${{secrets.VERACODE_KEY}}" --file "result.zip" -jo true -so true
+       
+  # The workflow consist of a single job to quickly scan dependencies
+  SCA_Scan:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    needs: [ Build, generate-sandbox-name ]
+    steps:
+      - uses: actions/checkout@v2
+      - name: SCA Scan
+        env: 
+          SRCCLR_API_TOKEN: ${{ secrets.SRCCLR_API_TOKEN }}
+        run: |
+          git version
+          curl -sSL https://download.sourceclear.com/ci.sh | sh -s -- scan --recursive > veracode-sca-results.txt
+      - name: Check for existing Vulnerabilities
+        id: check-vulnerabilities
+        run: |
+          cat veracode-sca-results.txt
+          TEMP_VULN_EXISTS=$(grep 'Risk Vulnerabilities' veracode-sca-results.txt | awk '{sums += $4} END { test = (sums>0); print test}')
+          TEMP_VULN_SUM=$(grep 'Risk Vulnerabilities' veracode-sca-results.txt | awk '{sums += $4} END { print sums}')
+          echo ::set-output name=fail::$TEMP_VULN_EXISTS
+          echo ::set-output name=sums::$TEMP_VULN_SUM
+      - name: SCA Pass
+        if: ${{ steps.check-vulnerabilities.outputs.fail == 1 }}
+        uses: actions/github-script@v3
+        env:
+          VULN_NUM: ${{ steps.check-vulnerabilities.outputs.sums }}
+        with:
+          script: |
+            console.log(process.env.VULN_NUM);
+            core.setFailed(`Found ${process.env.VULN_NUM} Risk Vulnerabilities in your open source libraries`);
+```
+</p>
+</details>
+
+<details>
+<summary>Example for how check will show as part of Pull Request</summary>
+<p align="center">
+  <img src="/media/img/pr-multi-jobs.png" width="600px" alt="Github pull request checks with multiple jobs"/>
+</p>
+</details>
 
 ## Scaling in an Organization
 
