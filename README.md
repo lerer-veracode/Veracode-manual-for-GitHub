@@ -633,7 +633,7 @@ Instead of rewriting everything for every BU/Team/repo use shared workflow by cr
 In addition, you can think on shared Secret - but keep in mind Pipeline Scan throughput to not exceed 6 scans/min
 
 ### Auto Pull request for vulnerable dependencies after merge into Main/Master
-Right after a pull request is approved, the target branch will issue a `push` event (as new code is merged). This is an opportunity to run a scan to auto create Pull request based on the Vulnerable Methods found in a scan.
+Right after a pull request is approved, the target branch will issue a `push` event (as new code is merged). This is an opportunity to run a scan to auto create Pull request (based on the Vulnerable Methods or Severity of Vulnerabilities found in a scan).
 
 __[Veracode SCA Auto pull request](https://help.veracode.com/r/t_configure_auto_pr)__ only apply to [supported languages](https://help.veracode.com/r/Understanding_Automatic_Pull_Request_Support): Java, Python, Ruby, JavaScript, Objective-C, and PHP 
 
@@ -691,13 +691,100 @@ jobs:
 
 </p>      
 </details> 
-<br/>
+
 
 ### Options for Pipeline scan baseline
-Pipeline scan provides the ability to use baseline acting as the "approved mitigations" or accepted risk condition which instruct the Pipeline Scan to only highlight finding other than the ones in the baseline.
+Pipeline scan provides the ability to use baseline acting as the "approved mitigations" or accepted risk level which instruct the Pipeline Scan to return finding other than the ones in the provided baseline.
+
+It can be useful is to re-base the Baseline file after approving a Pull Request - "if we __OK__ to look at it as an `Approval` for accepting security risk going into certain (main/master) branches."
 
 #### Commit Baseline into a Repository
+One option to handle such a rebase is to commit the baseline as a file in the repository. The advantage in this step is to provide the file to the developers working with the code and synchronize the baseline to their local repository.
 
-#### Save Baseline as an Artifact
+<details>
+<summary>Example - commit baseline file after Approved Pull request to main/master</summary>
+<p>
+
+```yaml
+name: Push baseline file
+
+# Controls when the workflow will run
+on:
+  push:
+    branches: [master , main]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:  
+  Build:
+    runs-on: [ubuntu-latest]
+    steps:
+      - name: Check out repo 
+        uses: actions/checkout@v2
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      - name: Build with Maven
+        working-directory: ./app/
+        run: mvn -B package --file pom.xml
+      - name: create dir prior
+        run: |
+          mkdir dls
+      - name: Download pipeline code
+        working-directory: ./dls/
+        run: |
+          curl https://downloads.veracode.com/securityscan/pipeline-scan-LATEST.zip -o veracode.zip
+          unzip veracode.zip
+      - name: Run Pipeline Scanner
+        # Baseline should only be created when using filtered results without baseline file as input
+        run: |
+          java -jar ./dls/pipeline-scan.jar --veracode_api_id "${{secrets.VERACODE_ID}}" --veracode_api_key "${{secrets.VERACODE_KEY}}" --file "app/target/verademo.war" -fs "Very High, High" -jo true -so true --project_url https://www.github.com/$GITHUB_REPOSITORY -p $GITHUB_REPOSITORY -r $GITHUB_REF 
+        continue-on-error: true
+      - name: list files
+        run: |
+          yes | cp filtered_results.json baseline.json
+          git config user.email "${{secrets.USER_EMAIL}}"
+          git config user.name "${{secrets.USER_NAME}}"
+          git add "baseline.json"
+          git commit -m "Updates baseline"
+          # git push origin ${{ github.head_ref }}
+          git push origin ${{ github.ref }}          
+```
+</p>
+</details>
+
 
 ### Shared Downloaded Policies for Pipeline Scan
+Pipeline scan today can [download a policy file](https://help.veracode.com/r/Using_Policies_with_the_Pipeline_Scan) based on policies defined in the Veracode Platform. We can subsequently use the downloaded policy as an input to the Pipeline scan for the fail/pass condition.
+
+However, we don't recommended downloading the policy file every time we run a pipeline scan:
+- Policies are rarely changed (compared to the scanned code) 
+- Policies are shared across multiple Application meaning, multiple repositories 
+  
+...maybe we can store it in a shared location...
+
+We can (and probably should) only refresh policy files once a day and store in a shared location to be used by any (permitted) repository workflow.
+
+Here is an option:
+1) Let's store policies in a nightly scheduled workflow at the same place where we store the shared workflows (`.github` repository) - as an __artifact__!
+2) We will download the policy from the shared location prior to running pipeline scan in a workflow
+
+<details>
+<summary>Storing policies as artifacts</summary>
+<p>
+
+```yaml
+```
+</p>
+</details>
+
+<details>
+<summary>Downloading the policy from another workflow</summary>
+<p>
+
+```yaml
+```
+</p>
+</details>
