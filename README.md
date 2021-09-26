@@ -770,6 +770,7 @@ We can control and only refresh policy files once a day and store in a shared lo
 Here is an option:
 1) Let's download and store policies using a nightly scheduled workflow to a  `shared` repository
 2) We will download the policy from the shared repository prior to running pipeline scan in a workflow
+3) We will template the above for the easy import from any other repository
 
 <details>
 <summary>Storing policies in a shared Repository</summary>
@@ -870,4 +871,59 @@ jobs:
       
 ```
 </p>
+
+
+</details>
+
+<details>
+<summary>Downloading the policy from another workflow - as template (Java)</summary>
+<p>
+
+```yaml
+name: Pipeline Scan with remote policy
+
+# Controls when the workflow will run
+on:
+  push:
+  pull_request:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:  
+  Build:
+    runs-on: [ubuntu-latest]
+    steps:
+      - name: Check out repo 
+        uses: actions/checkout@v2
+        # Replace compilation for different languages
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      - name: Build with Maven
+        working-directory: ./app/
+        run: mvn -B package --file pom.xml
+      - name: create dir prior
+        run: |
+          mkdir dls
+      - name: Download pipeline code
+        working-directory: ./dls/
+        run: |
+          curl https://downloads.veracode.com/securityscan/pipeline-scan-LATEST.zip -o veracode.zip
+          unzip veracode.zip
+      - name: Get policy file
+        # Leave only the line with the policy relevant to your code in the repository
+        run: | 
+          curl https://raw.githubusercontent.com/lerer-veracode/policies/main/sec/HighlySensitive.json -o policy.json
+          curl https://raw.githubusercontent.com/lerer-veracode/policies/main/sec/High.json -o policy.json
+      - name: Run Pipeline Scanner
+        # Modify target scan file (here "app/target/verademo.war") for different code base or languages 
+        run: |
+          java -jar ./dls/pipeline-scan.jar --veracode_api_id "${{secrets.VERACODE_ID}}" --veracode_api_key "${{secrets.VERACODE_KEY}}" --file "app/target/verademo.war" --policy_file "./policy.json" -jo true -so true --project_url https://www.github.com/$GITHUB_REPOSITORY -p $GITHUB_REPOSITORY -r $GITHUB_REF 
+      
+```
+</p>
+
+
 </details>
