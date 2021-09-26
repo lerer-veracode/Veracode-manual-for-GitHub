@@ -763,19 +763,63 @@ However, we don't recommended downloading the policy file every time we run a pi
 - Policies are rarely changed (compared to the scanned code) 
 - Policies are shared across multiple Application meaning, multiple repositories 
   
-...maybe we can store it in a shared location...
+...maybe we can store it in a shared location...and alias their name to protect from policy name change...
 
-We can (and probably should) only refresh policy files once a day and store in a shared location to be used by any (permitted) repository workflow.
+We can control and only refresh policy files once a day and store in a shared location to be used by any other repository workflow.
 
 Here is an option:
-1) Let's store policies in a nightly scheduled workflow at the same place where we store the shared workflows (`.github` repository) - as an __artifact__!
-2) We will download the policy from the shared location prior to running pipeline scan in a workflow
+1) Let's download and store policies using a nightly scheduled workflow to a  `shared` repository
+2) We will download the policy from the shared repository prior to running pipeline scan in a workflow
 
 <details>
-<summary>Storing policies as artifacts</summary>
+<summary>Storing policies in a shared Repository</summary>
 <p>
 
 ```yaml
+name: Update Latest Policies for Veracode Pipeline Scanner 
+on:
+  workflow_dispatch:
+  
+  schedule:
+    - cron: 30 14 * * *
+
+jobs:
+  download_policies_global:
+    runs-on: ubuntu-latest
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+      - name: create dir prior
+        run: |
+          git pull
+          mkdir dls
+      - name: Download pipeline code
+        working-directory: ./dls/
+        run: |
+          curl https://downloads.veracode.com/securityscan/pipeline-scan-LATEST.zip -o veracode.zip
+          unzip veracode.zip
+      - name: Download Policy High Risk
+        continue-on-error: true
+        run: java -jar ./dls/pipeline-scan.jar --veracode_api_id "${{secrets.VERACODE_ID}}" --veracode_api_key "${{secrets.VERACODE_KEY}}" --request_policy "Fix High Severity - non scored"
+      - name: Download Policy Highly Sensitive
+        continue-on-error: true
+        run: java -jar ./dls/pipeline-scan.jar --veracode_api_id "${{secrets.VERACODE_ID}}" --veracode_api_key "${{secrets.VERACODE_KEY}}" --request_policy "Acceptable quality"
+      - name: Clean-ups and alias
+        run: |
+          echo "Remove veracode files"
+          rm -rf dls/*
+          mkdir -p sec
+          mv -f Fix_High_Severity_-_non_scored.json sec/High.json
+          mv -f Acceptable_quality.json sec/HighlySensitive.json
+      - name: Push the policies
+        continue-on-error: true
+        run: |
+          git config user.email "${{secrets.USER_EMAIL}}"
+          git config user.name "${{secrets.USER_NAME}}"
+          git add "sec/High.json"
+          git add "sec/HighlySensitive.json"
+          git commit -m "Updates Policies"
+          git push origin ${{ github.ref }}       
 ```
 </p>
 </details>
@@ -785,6 +829,45 @@ Here is an option:
 <p>
 
 ```yaml
+name: Pipeline Scan with remote policy
+
+# Controls when the workflow will run
+on:
+  push:
+  pull_request:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:  
+  Build:
+    runs-on: [ubuntu-latest]
+    steps:
+      - name: Check out repo 
+        uses: actions/checkout@v2
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      - name: Build with Maven
+        working-directory: ./app/
+        run: mvn -B package --file pom.xml
+      - name: create dir prior
+        run: |
+          mkdir dls
+      - name: Download pipeline code
+        working-directory: ./dls/
+        run: |
+          curl https://downloads.veracode.com/securityscan/pipeline-scan-LATEST.zip -o veracode.zip
+          unzip veracode.zip
+      - name: Get policy file
+        run: | 
+          curl https://raw.githubusercontent.com/lerer-veracode/policies/main/sec/High.json -o policy.json
+      - name: Run Pipeline Scanner
+        # Baseline should only be created when using filtered results without baseline file as input
+        run: |
+          java -jar ./dls/pipeline-scan.jar --veracode_api_id "${{secrets.VERACODE_ID}}" --veracode_api_key "${{secrets.VERACODE_KEY}}" --file "app/target/verademo.war" --policy_file "./policy.json" -jo true -so true --project_url https://www.github.com/$GITHUB_REPOSITORY -p $GITHUB_REPOSITORY -r $GITHUB_REF 
+      
 ```
 </p>
 </details>
