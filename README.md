@@ -2,13 +2,13 @@
 
 ## Introduction
 
-This manual incorporate few option Veracode customers can use to integrate Veracode Scanning solutions with their own workflow processes. 
+This page (or manual) incorporate few option which Veracode customers can use to integrate Veracode Scanning solutions within their own workflow processes. 
 
-From the previous sentence we can see that all our discussed concepts and work will be around and within GitHub workflow and unavoidably GitHub Actions.
+The following discussed concepts are valid for all CI/CD, however, the examples given here focus on GitHub workflow and unavoidably GitHub Actions implementations.
 
 ## The basic
 
-The base of our integration is achievable via script running within the workflows. These script will look very similar to what you would run locally on your PC to do any of the listed scan types. 
+As most integration options, the most basic is integration via script running within the workflows. These script will look very similar to what you would run locally on your PC to do any supported scan types. 
 
 
 
@@ -18,7 +18,7 @@ A basic script using a wrapper is documented __[at Veracode help center](https:/
 
 `java -jar vosp-api-wrapper-java<version>.jar -action uploadandscan -vid <Veracode API ID> -vkey <Veracode API key> -appname myapp -createprofile true -teams myteam -criticality VeryHigh -sandboxname sandboxA -createsandbox true -version <unique version> -scantimeout 30 -selectedpreviously true -filepath /workspace/myapp.jar`
 
-within a GitHub workflow we will need to download the latest version and run the above script.
+within a GitHub workflow we will need to download the latest version of the API Wrapper and run the above script.
 <details>
 <summary>See example</summary>
 <p>
@@ -42,7 +42,7 @@ jobs:
   # This workflow contains a single job called "build"
   build:
     # The type of runner that the job will run on
-    runs-on: [ self-hosted, generic ]
+    runs-on: ubuntu-latest
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - name: create dir prior
@@ -121,9 +121,9 @@ jobs:
 </details>
 
 #### Align sandbox name with branch name (Optional)
-As you noticed in the above examples, the sandbox name for the scan was a fixed name. A fixed sandbox name is not maintainable as we probably want to scan different changes/versions in a different sandboxes.
+If you look into the above example, you'll noticed the sandbox name is a fixed name. A fixed sandbox name will not do well in the long run as we probably want to scan different changes/versions in a different sandboxes.
 
-An alternative to that is to have the sandbox name as the Git branch name. In order to achieve this we can modify the workflow definition to include a step prior to the scan to save the branch name as an attribute and use it when we submit for scan.
+An alternative to that is to align the sandbox name with the repository branch name. In order to achieve that we can modify the workflow definition to include a step prior to the scan to save the branch name as an attribute and use it when we submit for scan.
 
 <details>
 <summary>See example</summary>
@@ -146,7 +146,7 @@ on:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   generate-sandbox-name:
-    runs-on: [ self-hosted, generic ]
+    runs-on: ubuntu-latest
     outputs:
       sandbox-name: ${{ steps.set-sandbox-name.outputs.sandbox-name }}
     steps:
@@ -172,7 +172,8 @@ jobs:
   # This workflow contains a single job called "build"
   build:
     # The type of runner that the job will run on
-    runs-on: [ self-hosted, generic ]
+    runs-on: ubuntu-latest
+    needs: [ generate-sandbox-name ]
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - name: Veracode Upload And Scan
@@ -203,17 +204,17 @@ jobs:
 </details>
 <br/>
 
-> :bulb: - The above example uses multiple jobs definition which I will further elaborate at the [Flow Control section](#flow-control)
+> :bulb: - The above example uses multiple jobs definition which we will explain further at the [Flow Control section](#flow-control) section
 
 ### Pipeline Scan
 #### Script
 The basic script for Pipeline documented __[at the Veracode help center](https://help.veracode.com/r/Run_a_Pipeline_Scan_from_the_Command_Line)__ and in its most basic form it looks as follow.
 
-`java -jar pipeline-scan.jar --file <file.zip>`
+`java -jar --veracode_api_id "${{secrets.VERACODE_ID}}" --veracode_api_key "${{secrets.VERACODE_KEY}} pipeline-scan.jar --file <file.zip>`
 
 A more advanced and context aware options are documented __[here](https://help.veracode.com/r/r_pipeline_scan_commands)__. 
 
-within a Github workflow the same scan script will be put as a step right after downloading the Pipeline Scan code itself
+Within a Github workflow the above scan script will get added as a step right after downloading the latest Pipeline Scan package itself.
 <details>
 <summary>See example</summary>
 <p>
@@ -237,7 +238,7 @@ jobs:
   # This workflow contains a single job called "build"
   build:
     # The type of runner that the job will run on
-    runs-on: [ self-hosted, generic ]
+    runs-on: ubuntu-latest
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - name: create dir prior
@@ -250,7 +251,7 @@ jobs:
           unzip veracode.zip
       - name: Run Pipeline Scanner
         continue-on-error: true
-        run: java -jar ./dls/pipeline-scan.jar --veracode_api_id "${{secrets.VERACODE_ID}}" --veracode_api_key "${{secrets.VERACODE_KEY}}" --file "result.zip" -jo true -so true  
+        run: java -jar ./dls/pipeline-scan.jar --veracode_api_id "${{secrets.VERACODE_ID}}" --veracode_api_key "${{secrets.VERACODE_KEY}}" --file "result.zip" -jo true -so true --project_url https://www.github.com/$GITHUB_REPOSITORY -p $GITHUB_REPOSITORY -r $GITHUB_REF
 ```
 </p>      
 </details> 
@@ -262,11 +263,11 @@ jobs:
 #### Script
 The basic script for Agent-Based SCA CLI (Command line interface) is documented [at the Veracode help center](https://help.veracode.com/r/Using_the_Veracode_SCA_Command_Line_Agent)
 
-The basic form on a PC using cURL is usually the simplest way to be use in a CI workflow.
+The basic form on a PC using cURL is also the simplest way to be use in a CI workflow.
 
 `curl -sSL https://download.sourceclear.com/install | sh`
 
-As all of our integrations, more advanced scan options are documented across our [help center](https://help.veracode.com/r/c_sc_agent_usage)
+As all of our integrations, more advanced scan options are documented in our [help center](https://help.veracode.com/r/c_sc_agent_usage)
 
 For Agent-Based SCA (security scanning of 3<sup>rd</sup> party components) solution we have a very simple script which can easily put in a workflow.
 
@@ -311,18 +312,19 @@ jobs:
 </details> 
 <br/>
 
-> :bulb: The above example script used a very specific trigger for changes in TypeScript/JavaScript packaging file __`package-lock.json`__. Different programming language may result in different trigger __`on`__ scan attributes
+> :bulb: The above example script is using a very specific trigger for changes in TypeScript/JavaScript packaging definition file __`package-lock.json`__. Different programming language will require different __`on`__ scan attributes trigger.
 
 ## Import Findings
 
 With our different Static scanning, we now have the ability to import the findings using different techniques
 
 ### Visualize Pipeline Findings as Pull Request comment
-The basic form of 'import' is not really an import but more of a surfacing the result. When the Pipeline Scan run within a workflow, all messages are kept inside the workflow. However, when we are using the scan as part of a Pull Request, we may want to copy the Scan output as a comment in the Pull Request main `Conversation` tab.
+The basic form of 'import' is rather a surfacing of the result. When a Pipeline Scan run within a workflow, all messages are kept inside the workflow. However, when we are using the scan as part of a Pull Request, we may want to copy the Scan output as a comment in the Pull Request main `Conversation` tab.
 
-to do that we can utilize build-in GitHub scripting functionality. (This is not a __Veracode__ function)
+To do that we can utilize build-in GitHub scripting functionality. (This is not a __Veracode__ function)
 
 See __[basic example](https://github.com/Lerer/veracode-pipeline-PR-comment)__
+
 
 <details>
 <summary>Another inline example</summary>
@@ -378,14 +380,17 @@ jobs:
 <p align="center">
   <img src="/media/img/pr-github-comment-pipeline.png" width="700px" alt="Pipeline scan as comment in PR conversation"/>
 </p>
+
 </p>
 </details>
 </br>
- 
+
+> The inline example is from a [an actual pull request](https://github.com/Lerer/verademo-sarif/pull/3)
+     
 > :bulb: A different output can be done by further/differently manipulating the text output
 
 ### Pipeline Scan as GitHub Security issues
-For customers with Enterprise Accounts with license for 'GitHub Advanced Security', we can import our Pipeline Scan result to the dedicated `Security` issues.
+For Enterprise GitHug Accounts with a license for 'GitHub Advanced Security', we can import our Pipeline Scan result to the dedicated `Security` issues.
 
 That option is available via our official __[action](https://github.com/marketplace/actions/veracode-static-analysis-pipeline-scan-and-sarif-import)__
 
@@ -494,11 +499,14 @@ If we enable branch protection, any failed `job` within a workflow can prevent p
 </details>
 
 ### Splitting into Jobs - Adding Checks
-Another scenario is for example if we want to have parallel different scan processes which we want to get separate statuses - for example SCA and Static.
+Another scenario is for example if we want to have parallel different scan processes to achieve:
+- Parallel processing - faster overall flaw time
+- Or, separate statuses - for example SCA and Static.
+
+> :bulb: Every __job__ in a workflow will report back its own status as a __```check```__.
 
 We can either create separate workflows or we can create a single flow with separate to Jobs. 
 
-The point is - every __job__ in a workflow will report a status as __check__ back.
 
 <details>
 <summary>Example for flaw output with multiple jobs</summary>
@@ -621,19 +629,35 @@ jobs:
 <p align="center">
   <img src="/media/img/pr-multi-jobs.png" width="600px" alt="Github pull request checks with multiple jobs"/>
 </p>
+<center><b> The above example is showing a Pull request without Branch Protection enabled</b></center>
 </details>
 
+
 ## Scaling in an Organization
+For larger organization who seek a more help on how to utilize the above suggestions and ease their different teams onboarding process - to encouraging faster and easier adoption of DevSecOps.
 
 ### Share templated workflows
-Instead of rewriting everything for every BU/Team/repo use shared workflow by creating `.github` repository in the account
+Workflow define and save in each repository, however, instead of copy-paste for every repository we can use GitHug shared workflows by creating `.github` repository in the account.
 
-- See [Shared workflows](https://docs.github.com/en/actions/learn-github-actions/sharing-workflows-with-your-organization) documentation
+- See detailed information at the [Shared workflows](https://docs.github.com/en/actions/learn-github-actions/sharing-workflows-with-your-organization) documentation
 
-In addition, you can think on shared Secret - but keep in mind Pipeline Scan throughput to not exceed 6 scans/min
+In addition to shared workflows, you should also consider Organization shared Secrets
+
+> :exclamation: Keep in mind - Pipeline Scan throughput limited to  6 scans/min
+
+See following shared workflows example:
+- [https://github.com/lerer-veracode/.github](https://github.com/lerer-veracode/.github/tree/main/workflow-templates)
+- [https://github.com/tjarrettveracode/.github](https://github.com/tjarrettveracode/.github)
+
+<details>
+<summary>How does it look like in workflow creation screen</summary>
+<p align="center">
+  <img src="/media/img/new-workflow-screen.png" width="800px" alt="New workflow screen"/>
+</p>
+</details>
 
 ### Auto Pull request for vulnerable dependencies after merge into Main/Master
-Right after a pull request is approved, the target branch will issue a `push` event (as new code is merged). This is an opportunity to run a scan to auto create Pull request (based on the Vulnerable Methods or Severity of Vulnerabilities found in a scan).
+Right after a pull request is approved, the target branch will issue a `push` event (as new code is merged). This is an opportunity to run a scan to automatically produce a Pull request for known 3<sup>rd</sup> party components vulnerabilities (based on Vulnerable Methods or Severity of Vulnerabilities found in a scan).
 
 __[Veracode SCA Auto pull request](https://help.veracode.com/r/t_configure_auto_pr)__ only apply to [supported languages](https://help.veracode.com/r/Understanding_Automatic_Pull_Request_Support): Java, Python, Ruby, JavaScript, Objective-C, and PHP 
 
@@ -696,10 +720,10 @@ jobs:
 ### Options for Pipeline scan baseline
 Pipeline scan provides the ability to use baseline acting as the "approved mitigations" or accepted risk level which instruct the Pipeline Scan to return finding other than the ones in the provided baseline.
 
-It can be useful is to re-base the Baseline file after approving a Pull Request - "if we __OK__ to look at it as an `Approval` for accepting security risk going into certain (main/master) branches."
+It can be useful to re-base the Baseline file after approving a Pull Request 
+> Only if we __OK__ to look at Pull Request approval also as an __`Approval`__ for accepting security risk going into certain (main/master) branches.
 
-#### Commit Baseline into a Repository
-One option to handle such a rebase is to commit the baseline as a file in the repository. The advantage in this step is to provide the file to the developers working with the code and synchronize the baseline to their local repository.
+An option to handle such a rebase is to commit the baseline as a file in the repository. The advantage in this option is to have the baseline file available to developers working with the code and synchronize the baseline with their local cloned repository.
 
 <details>
 <summary>Example - commit baseline file after Approved Pull request to main/master</summary>
@@ -757,11 +781,11 @@ jobs:
 
 
 ### Shared Downloaded Policies for Pipeline Scan
-Pipeline scan today can [download a policy file](https://help.veracode.com/r/Using_Policies_with_the_Pipeline_Scan) based on policies defined in the Veracode Platform. We can subsequently use the downloaded policy as an input to the Pipeline scan for the fail/pass condition.
+Pipeline scan today can [download a policy file](https://help.veracode.com/r/Using_Policies_with_the_Pipeline_Scan) based on policies defined in the Veracode Platform. We can subsequently use a downloaded policy as an input to a Pipeline scan as a fail/pass condition - similar to the Upload-and-Scan logic.
 
 However, we don't recommended downloading the policy file every time we run a pipeline scan:
 - Policies are rarely changed (compared to the scanned code) 
-- Policies are shared across multiple Application meaning, multiple repositories 
+- Policies are shared across multiple Application profile - hence, shared between multiple repositories 
   
 ...maybe we can store it in a shared location...and alias their name to protect from policy name change...
 
@@ -925,5 +949,6 @@ jobs:
 ```
 </p>
 
-
 </details>
+
+> :bulb: The last example is what you would put in the workflows shared via your organization __`.github`__ repository.
