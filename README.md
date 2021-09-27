@@ -88,9 +88,8 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
+  # This workflow contains a single job called "SAST-Scan"
   SAST-Scan:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
@@ -536,15 +535,15 @@ Example for such issues can be seen here:
 ### SCA import findings
 Unfortunately, as of now, we don't have an official (or unofficial) __simple__ action to import finding for SCA result - Agent-Based or Upload and Scan.
 
-However here is an example on how to surface SCA finding from Agent-Based SCA scan within a workflow job:
+However here is an __[example](https://github.com/lerer-veracode/verademo-java/blob/test-multi-job/.github/workflows/security_multi_job.yml)__ on how to surface SCA finding from Agent-Based SCA scan within a workflow job.
 
 
 <details>
-<summary>Workflow example with parallel Agent-Based and Pipeline Scan</summary>
+<summary>Part of Workflow example</summary>
 <p>
 
 ```yaml
-name: Secure with multiple separate jobs
+name: Secure with SCA Agent Based
 
 # Controls when the workflow will run
 on:
@@ -629,9 +628,11 @@ Another scenario is for example if we want to have parallel different scan proce
 - Parallel processing - faster overall flaw time
 - Or, separate statuses - for example SCA and Static.
 
-> :bulb: Every __job__ in a workflow will report back its own status as a __```check```__.
+> :bulb: Every __job__ in a workflow will report back its own status as a __`check`__.
 
-We can either create separate workflows or we can create a single flow with separate to Jobs. 
+We can either create separate workflows or we can create a single flow with separate to Jobs.
+
+The following example is taken from __[this implementation](https://github.com/lerer-veracode/verademo-java/blob/test-multi-job/.github/workflows/security_multi_job.yml)__
 
 
 <details>
@@ -825,10 +826,10 @@ jobs:
 ## Scaling in an Organization
 For larger organization who seek more help on how to utilize the above suggestions and ease the onboarding process of their different teams - to encouraging faster and easier adoption of DevSecOps.
 
-### Share templated workflows
+### Shared workflow templates
 Workflow define and save in each repository, however, instead of copy-paste for every repository we can use GitHug shared workflows by creating `.github` repository in the account.
 
-- See detailed information at the [Shared workflows](https://docs.github.com/en/actions/learn-github-actions/sharing-workflows-with-your-organization) documentation
+- See detailed information at the __[Shared workflows](https://docs.github.com/en/actions/learn-github-actions/sharing-workflows-with-your-organization)__ documentation
 
 In addition to shared workflows, you should also consider Organization shared Secrets
 
@@ -909,7 +910,7 @@ jobs:
 </details>
 <br/>
 
-> :bulb: Do not use a baseline file in the Pipeline scan command in order to generate a new baseline file, as the `filtered_results.json` file will not output what is needed as a new baseline file 
+> :bulb: Do not use a baseline file in the Pipeline scan command in order to generate a new baseline file, as the __`filtered_results.json`__ file will not output what is needed as a new baseline file 
 
 
 ### Shared Downloaded Policies for Pipeline Scan
