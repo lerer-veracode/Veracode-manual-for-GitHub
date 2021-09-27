@@ -735,6 +735,18 @@ jobs:
 
 <hr/>
 
+> From [Melvin Conway](https://en.wikipedia.org/wiki/Melvin_Conway) - __"Organizations, who design systems, are constrained to produce designs which are copies of the communication structures of these organizations."__ (Copyright 1968)
+
+I added the above quote as it always pop in my mind when I try to show a workflow and the other side is responding with a variation of: "But, this is not how we do things here...".
+
+All the different "utilities" mentioned in the previous sections are simply building blocks which can be used in different combinations. Every organization eventually have to decide what best serve their existing or intended processes.
+
+We can however (and in some situations should) suggest or recommend few best practices.
+
+The next sections are few suggestions!
+
+<hr/>
+
 ## Flow Control
 
 This section is mostly around utilizing GitHub build-in functionality to implement a desire process. 
@@ -1285,6 +1297,8 @@ jobs:
 <br/>
 
 > :grey_exclamation: It is up to each Organization (or business unit) to define their preferred controls and processes.
+
+> :grey_exclamation: Organizations with integration into their CD process may decide to run a Policy Scan on what is just or about to be deploy or deliver
 
 <hr/>
 
