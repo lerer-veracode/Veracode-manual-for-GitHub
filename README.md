@@ -176,8 +176,11 @@ If you look into the above example, you'll noticed the sandbox name is a fixed n
 
 An alternative to that is to align the sandbox name with the repository branch name. In order to achieve that we can modify the workflow definition to include a step prior to the scan to save the branch name as an attribute and use it when we submit for scan.
 
+Example workflow:
+- [https://github.com/Lerer/verademo-sarif/blob/master/.github/workflows/veracode-upload-and-scan.yml](https://github.com/Lerer/verademo-sarif/blob/master/.github/workflows/veracode-upload-and-scan.yml)
+
 <details>
-<summary>See example</summary>
+<summary>Inline example</summary>
 <p>
 
 ```yaml
@@ -363,7 +366,7 @@ jobs:
 </details> 
 <br/>
 
-> :bulb: The above example script is using a very specific trigger for changes in TypeScript/JavaScript packaging definition file __`package-lock.json`__. Different programming language will require different __`on`__ scan attributes trigger.
+> :bulb: The above example script is using a very specific trigger for changes in TypeScript/JavaScript packaging definition file __`package-lock.json`__. Different programming language will require different __`on`__ scan trigger settings.
 
 ## Import Findings
 
@@ -443,7 +446,8 @@ jobs:
 ### Pipeline Scan as GitHub Security issues
 For Enterprise GitHug Accounts with a license for 'GitHub Advanced Security', we can import our Pipeline Scan result to the dedicated `Security` issues.
 
-That option is available via our official __[action](https://github.com/marketplace/actions/veracode-static-analysis-pipeline-scan-and-sarif-import)__
+That option is available in GitHub Actions marketplace - __[Veracode Static Analysis Pipeline Scan and SARIF import](https://github.com/marketplace/actions/veracode-static-analysis-pipeline-scan-and-sarif-import)__ 
+A (relatively older) use can be found at: [Lerer/verademo-sarif](https://github.com/Lerer/verademo-sarif/security/code-scanning)
 
 
 <details>
@@ -509,7 +513,7 @@ jobs:
 ### Upload and Scan / Pipeline Scan as Issues
 Lastly, for organization who don't have the license for 'GitHub Advanced Security' or simply don't want to use the `Security` issues, they can import the finding as any other issue in the `Issues` section. 
 
-That is achieve by an __[Action](https://github.com/marketplace/actions/veracode-scan-results-to-github-issues)__.
+That is achieve by the __[Veracode scan results to GitHub issues](https://github.com/marketplace/actions/veracode-scan-results-to-github-issues)__ action.
 
 Example for such issues can be seen here:
 - [https://github.com/julz0815/veracode-flaws-to-issues/issues](https://github.com/julz0815/veracode-flaws-to-issues/issues)
@@ -530,16 +534,16 @@ Example for such issues can be seen here:
 ### SCA import findings
 As of now, we don't have an official (or unofficial) __simple__ action to import finding for SCA result - Agent-Based or Upload and Scan.
 
-There is an example below to "file a build" based on SCA findings.
+There is an example below to "break a build" based on SCA findings.
 
-:exclamation: a place-holder for future implementation.
+:exclamation: This is a place-holder for future implementation.
 
 ## Flow Control
 
-This section is mostly around utilizing GitHub build-in functionality to get a desire process. 
+This section is mostly around utilizing GitHub build-in functionality to implement a desire process. 
 
-### Branch protection (for Pull Request)
-__[Protected Branches](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/about-protected-branches)__ can help answer a (repeated) question - How can we block a Pull Request for failed scan.
+### Branch protection (good practice for Pull Request)
+__[Protected Branches](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/about-protected-branches)__ feature is the answer to a (repeated) question - How can we block a Pull Request for failed scan.
 
 The answer is in a __['Require Status Checks Before Merging' section](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/about-protected-branches#require-status-checks-before-merging)__ in the above manual.
 
@@ -693,31 +697,6 @@ jobs:
 <center><b> The above example is showing a Pull request without Branch Protection enabled</b></center>
 </details>
 
-
-## Scaling in an Organization
-For larger organization who seek more help on how to utilize the above suggestions and ease the onboarding process of their different teams - to encouraging faster and easier adoption of DevSecOps.
-
-### Share templated workflows
-Workflow define and save in each repository, however, instead of copy-paste for every repository we can use GitHug shared workflows by creating `.github` repository in the account.
-
-- See detailed information at the [Shared workflows](https://docs.github.com/en/actions/learn-github-actions/sharing-workflows-with-your-organization) documentation
-
-In addition to shared workflows, you should also consider Organization shared Secrets
-
-> :exclamation: Keep in mind - Pipeline Scan throughput limited to  6 scans/min
-
-See following shared workflows example:
-- [https://github.com/lerer-veracode/.github](https://github.com/lerer-veracode/.github/tree/main/workflow-templates)
-- [https://github.com/tjarrettveracode/.github](https://github.com/tjarrettveracode/.github)
-
-<details>
-<summary>How does it look like in workflow creation screen</summary>
-<p align="center">
-  <img src="/media/img/new-workflow-screen.png" width="800px" alt="New workflow screen"/>
-</p>
-<center>For the above example, the Organization name is: <b>lerer-veracode</b></center>
-</details>
-
 ### Auto Pull request for vulnerable dependencies after merge into Main/Master
 Right after a pull request is approved, the target branch will issue a `push` event (as new code is merged). This is an opportunity to run a scan to automatically produce a Pull request for known 3<sup>rd</sup> party components vulnerabilities (based on Vulnerable Methods or Severity of Vulnerabilities found in a scan).
 
@@ -781,6 +760,30 @@ jobs:
 </p>      
 </details> 
 
+
+## Scaling in an Organization
+For larger organization who seek more help on how to utilize the above suggestions and ease the onboarding process of their different teams - to encouraging faster and easier adoption of DevSecOps.
+
+### Share templated workflows
+Workflow define and save in each repository, however, instead of copy-paste for every repository we can use GitHug shared workflows by creating `.github` repository in the account.
+
+- See detailed information at the [Shared workflows](https://docs.github.com/en/actions/learn-github-actions/sharing-workflows-with-your-organization) documentation
+
+In addition to shared workflows, you should also consider Organization shared Secrets
+
+> :exclamation: Keep in mind - Pipeline Scan throughput limited to  6 scans/min
+
+See following shared workflows example:
+- [https://github.com/lerer-veracode/.github](https://github.com/lerer-veracode/.github/tree/main/workflow-templates)
+- [https://github.com/tjarrettveracode/.github](https://github.com/tjarrettveracode/.github)
+
+<details>
+<summary>How does it look like in workflow creation screen</summary>
+<p align="center">
+  <img src="/media/img/new-workflow-screen.png" width="800px" alt="New workflow screen"/>
+</p>
+<center>For the above example, the Organization name is: <b>lerer-veracode</b></center>
+</details>
 
 ### Use Pipeline scan baseline
 Pipeline scan provides the ability to use baseline acting as the "approved mitigations" or accepted risk level which instruct the Pipeline Scan to return finding other than the ones in the provided baseline.
