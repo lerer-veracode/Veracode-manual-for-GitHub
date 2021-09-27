@@ -314,6 +314,72 @@ jobs:
 
 > :point_right: - it is recommended to include the application name and if possible the sandbox or branch name in the pipeline scan attribute to help with the platform reports. [-p \<project name/repository name\>] [-r \<project ref/branch name\>]
 
+#### Pre-built Docker Image
+Similar to what we have for Upload-and-Scan docker image - we also have a __[Pipeline Scan](https://hub.docker.com/r/veracode/pipeline-scan)__ image.
+
+An example of scan using that image can be found at:
+- [https://github.com/julz0815/Verademo/blob/master/.github/workflows/development_branch.yml](https://github.com/julz0815/Verademo/blob/master/.github/workflows/development_branch.yml)
+
+
+<details>
+<summary>See inline example</summary>
+<p>
+
+```yaml
+name: Veracode Pipeline Scan
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push events but only for non-main branches
+  push:
+    branches: [
+      - test/*
+      - dev*
+      - release/** ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs: 
+  Pipeline-scan:
+    needs: build
+    # The Build job omitted from the inline sample
+    runs-on: ubuntu-latest
+    container: 
+      image: veracode/pipeline-scan:latest
+      options: --user root
+    steps:
+      - name: get archive
+        uses: actions/download-artifact@v2
+        with:
+          name: verademo.war
+          path: /tmp
+      - name: pipeline-scan
+        run: | 
+          java -jar /opt/veracode/pipeline-scan.jar \
+            -vid "${{secrets.VERACODE_API_ID}}" \
+            -vkey "${{secrets.VERACODE_API_KEY}}" \
+            --fail_on_severity="Very High, High" \
+            --file /tmp/verademo.war \
+            -jf results.json \
+            -fjf filtered_results.json 
+        continue-on-error: true
+      - name: save standard results
+        uses: actions/upload-artifact@v1
+        with:
+          name: PipelineScanResults
+          path: results.json
+      - name: save filtered results
+        uses: actions/upload-artifact@v1
+        with:
+          name: filtered-results
+          path: filtered_results.json
+
+```
+</p>
+</details>
+<br/>
+
 ### Agent-Based SCA
 #### Script
 The basic script for Agent-Based SCA CLI (Command line interface) is documented [at the Veracode help center](https://help.veracode.com/r/Using_the_Veracode_SCA_Command_Line_Agent)
@@ -509,6 +575,64 @@ jobs:
 </p>
 
 </details> 
+
+### Policy findings as Security Issues
+Similar to the above, we can also import issues from our Policy/Sandbox scans in the platform.
+That is again using an action.
+
+- [https://github.com/julz0815/veracode_flaw_importer](https://github.com/julz0815/veracode_flaw_importer)
+
+<details>
+<summary>Importing Platform static results as Security</summary>
+<p>
+
+```yaml
+name: Import Static Flaws as GitHub Security issues
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow based on predefined criteria
+  push:
+  # pull_request:
+  
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  veracode-sandbox-scan:
+    # The specific build and Scan on your code
+    ....
+
+# Import flaws into code scanning alerts
+  import-flaws-code-scanning-alerts:
+    runs-on: ubuntu-latest
+    needs: veracode-sandbox-scan
+    steps:
+      - name: Veracode Flaw Importer
+        # Use the 'if' condition below if you only want to import on scan failure
+        if: ${{ failure() }}
+        uses: julz0815/veracode_flaw_importer@main
+        env:
+          VERACODE_API_KEY_ID: '${{ secrets.VERACODE_API_ID }}'
+          VERACODE_API_KEY_SECRET: '${{ secrets.VERACODE_API_KEY }}'
+        id: import_flaws
+        with:
+          # Application name in the platform
+          app_name: 'Verademo'
+          # Sandbox name in the platform
+          sandbox_name: 'Github - ${{ github.ref }}'
+      - uses: actions/upload-artifact@master
+        with:
+          name: flaws
+          path: /home/runner/work/Verademo/Verademo/fullResults.json
+      - uses: github/codeql-action/upload-sarif@v1
+        with:
+          sarif_file: /home/runner/work/Verademo/Verademo/fullResults.json
+
+```
+</p>
+</details>
 
 
 ### Upload and Scan / Pipeline Scan as Issues
@@ -760,11 +884,11 @@ jobs:
 </details>
 
 ### Auto Pull request for vulnerable dependencies after merge into Main/Master
-Right after a pull request is approved, the target branch will issue a `push` event (as new code is merged). This is an opportunity to run a scan to automatically produce a Pull request for known 3<sup>rd</sup> party components vulnerabilities (based on Vulnerable Methods or Severity of Vulnerabilities found in a scan).
+Right after a pull request is approved, the target branch will issue a `push` event (as new code is merged). This is an opportunity to run a scan to automatically produce a Pull request for known 3<sup>rd</sup> party components vulnerabilities (based on Vulnerable Methods and/or Severity of Vulnerabilities found in a scan).
 
-__[Veracode SCA Auto pull request](https://help.veracode.com/r/t_configure_auto_pr)__ only apply to [supported languages](https://help.veracode.com/r/Understanding_Automatic_Pull_Request_Support): Java, Python, Ruby, JavaScript, Objective-C, and PHP 
+__[Veracode SCA Auto pull request](https://help.veracode.com/r/t_configure_auto_pr)__ only apply to the following [supported languages](https://help.veracode.com/r/Understanding_Automatic_Pull_Request_Support): Java, Python, Ruby, JavaScript, Objective-C, and PHP.
 
-Make sure to read the instructions as it involves [creation of Github token](https://help.veracode.com/r/t_configure_pr_github) 
+:exclamation: Make sure to read the instructions as it involves __[creation of Github token](https://help.veracode.com/r/t_configure_pr_github)__.
 
 See pull Request example:
 - [https://github.com/lerer-veracode/verademo-java/pull/1](https://github.com/lerer-veracode/verademo-java/pull/1)
@@ -1025,7 +1149,7 @@ jobs:
         # Baseline should only be created when using filtered results without baseline file as input
         run: |
           java -jar ./dls/pipeline-scan.jar --veracode_api_id "${{secrets.VERACODE_ID}}" --veracode_api_key "${{secrets.VERACODE_KEY}}" --file "app/target/verademo.war" --policy_file "./policy.json" -jo true -so true --project_url https://www.github.com/$GITHUB_REPOSITORY -p $GITHUB_REPOSITORY -r $GITHUB_REF 
-      
+
 ```
 </p>
 
@@ -1088,6 +1212,65 @@ jobs:
 
 > :bulb: The last example is what you would put in the workflows shared via your organization __`.github`__ repository.
 
+### Should we run a Policy Scan?
+
+Technically the above different scan options enable you to execute direct scans as Policy Scan. However, after working with multiple customers, some prefers to only run scans in a Sandbox - including the Main branch.
+
+Those who are using purely Sandbox scanning prefer to use the manual "Promote Scan" in the platform as a Security control.
+
+<details>
+<summary>Example for branch name setup</summary>
+<p>
+
+```yaml
+name: Veracode Static Scan
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches: [ master, release/* ]
+  pull_request:
+    branches: [ master, develop, main, release/* ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  generate-sandbox-name:
+    runs-on: ubuntu-latest
+    outputs:
+      sandbox-name: ${{ steps.set-sandbox-name.outputs.sandbox-name }}
+    steps:
+      # Creates the sandbox(logical release descriptive status of current branch)
+      - id: set-sandbox-name
+        name: set-sandbox-name
+        run: |
+          echo ${{ github.head_ref }}
+          branchName="${{ github.head_ref }}"
+          if [[ -z "$branchName" ]]; then
+            branchName="${{ github.ref }}"
+          fi
+          
+          if [[ $branchName == *"master"* ]]; then
+          echo "::set-output name=sandbox-name::Master"
+          elif [[ $branchName == *"main"* ]]; then
+          echo "::set-output name=sandbox-name::Main"
+          elif [[ $branchName == *"elease/"* ]]; then
+          echo "::set-output name=sandbox-name::$branchName"
+          else
+          echo "::set-output name=sandbox-name::Development"
+          fi        
+  
+  Job-A:
+    .....
+```
+</p>
+</details>
+<br/>
+
+> :grey_exclamation: It is up to each Organization (or business unit) to define their preferred controls and processes.
 
 ## Open for needed contribution
 
@@ -1095,3 +1278,4 @@ jobs:
 - Generation of Pipeline Scan Baseline file from Static Profile mitigations
   - Some work was done by Tim Jarrett [here](https://github.com/tjarrettveracode/veracode-pipeline-mitigation) using Python script which can be leveraged
 - Policy/Sandbox scan :arrow_right: Summary report action
+- Promote Scan on approved Pull Request Action
