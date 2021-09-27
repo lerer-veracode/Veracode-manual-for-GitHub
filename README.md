@@ -1089,7 +1089,7 @@ jobs:
 > :bulb: The last example is what you would put in the workflows shared via your organization __`.github`__ repository.
 
 
-## Places to contribute
+## Open for needed contribution
 
 - SCA Agent Based Action :arrow_right: Create Issues from Vulnerabilities, Licenses, Outdated libraries
 - Generation of Pipeline Scan Baseline file from Static Profile mitigations
