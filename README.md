@@ -62,6 +62,57 @@ jobs:
 </p>
 </details>
 
+#### Pre-built Docker Image
+Veracode released and maintain a set of public Docker Images which are available at __[DockerHub](https://hub.docker.com/u/veracode)__. One of these has the API Wrapper pre-packaged and does not requires the convoluted download script.
+
+An example for such a use can be found here:
+- [https://github.com/lerer-veracode/verademo-java/blob/test-policy-scan-using-docker/.github/workflows/upload-and-scan.yml](https://github.com/lerer-veracode/verademo-java/blob/test-policy-scan-using-docker/.github/workflows/upload-and-scan.yml)
+
+<details>
+<summary>See example</summary>
+<p>
+
+```yaml
+name: Veracode Static Scan
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches: [ master, release/* ]
+  pull_request:
+    branches: [ master, develop, main, release/* ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  SAST-Scan:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    # The Build and Sandbox name generation omitted from the inline sample
+    needs: [generate-sandbox-name, Build]
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    container: 
+      image: veracode/api-wrapper-java:latest
+      options: --user root
+    steps:
+      - name: Get-scan-target
+        uses: actions/download-artifact@v2 # See https://github.com/actions/download-artifact
+        with:
+          name: built-file
+      - name: scan
+        run: |
+          java -jar /opt/veracode/api-wrapper.jar -vid ${{secrets.VERACODE_ID}} -vkey ${{secrets.VERACODE_KEY}} -action UploadAndScan -createprofile true -appname ${{ github.repository }} -version "${{ github.run_id }}" -sandboxname ${{needs.generate-sandbox-name.outputs.sandbox-name}} -createsandbox true  -scantimeout 30 -filepath ./verademo.war
+
+```
+</p>
+</details>
+<br/>
+
+> :bulb: The above is also example using multiple jobs with shared artifacts between them
 
 #### GitHub Action
 An easier way to incorporate the upload and scan into a workflow is using Veracode supported __[upload-and-scan GitHub action](https://github.com/marketplace/actions/veracode-upload-and-scan)__
@@ -460,6 +511,9 @@ Lastly, for organization who don't have the license for 'GitHub Advanced Securit
 
 That is achieve by an __[Action](https://github.com/marketplace/actions/veracode-scan-results-to-github-issues)__.
 
+Example for such issues can be seen here:
+- [https://github.com/julz0815/veracode-flaws-to-issues/issues](https://github.com/julz0815/veracode-flaws-to-issues/issues)
+
 <details>
 <summary>Screenshots</summary>
 <p>
@@ -472,6 +526,13 @@ That is achieve by an __[Action](https://github.com/marketplace/actions/veracode
 </p>
 </p>
 </details>
+
+### SCA import findings
+As of now, we don't have an official (or unofficial) __simple__ action to import finding for SCA result - Agent-Based or Upload and Scan.
+
+There is an example below to "file a build" based on SCA findings.
+
+:exclamation: a place-holder for future implementation.
 
 ## Flow Control
 
@@ -489,11 +550,11 @@ If we enable branch protection, any failed `job` within a workflow can prevent p
 <summary>Screenshot from Github</summary>
 <p>
 <p align="center">
-  <img src="/media/img/branch-protection-rule.png" width="600px" alt="Github branch protection rule definition example"/>
+  <img src="/media/img/branch-protection-rule.png" width="700px" alt="Github branch protection rule definition example"/>
 </p>
 <br/>
 <p align="center">
-  <img src="/media/img/pr-merge-branch-protection.png" width="600px" alt="PR blocked due to failed checks"/>
+  <img src="/media/img/pr-merge-branch-protection.png" width="700px" alt="PR blocked due to failed checks"/>
 </p>
 </p>
 </details>
@@ -634,7 +695,7 @@ jobs:
 
 
 ## Scaling in an Organization
-For larger organization who seek a more help on how to utilize the above suggestions and ease their different teams onboarding process - to encouraging faster and easier adoption of DevSecOps.
+For larger organization who seek more help on how to utilize the above suggestions and ease the onboarding process of their different teams - to encouraging faster and easier adoption of DevSecOps.
 
 ### Share templated workflows
 Workflow define and save in each repository, however, instead of copy-paste for every repository we can use GitHug shared workflows by creating `.github` repository in the account.
@@ -654,6 +715,7 @@ See following shared workflows example:
 <p align="center">
   <img src="/media/img/new-workflow-screen.png" width="800px" alt="New workflow screen"/>
 </p>
+<center>For the above example, the Organization name is: <b>lerer-veracode</b></center>
 </details>
 
 ### Auto Pull request for vulnerable dependencies after merge into Main/Master
@@ -663,8 +725,11 @@ __[Veracode SCA Auto pull request](https://help.veracode.com/r/t_configure_auto_
 
 Make sure to read the instructions as it involves [creation of Github token](https://help.veracode.com/r/t_configure_pr_github) 
 
+See pull Request example:
+- [https://github.com/lerer-veracode/verademo-java/pull/1](https://github.com/lerer-veracode/verademo-java/pull/1)
+
 <details>
-<summary>See example</summary>
+<summary>See inline workflow</summary>
 <p>
 
 ```yaml
@@ -717,7 +782,7 @@ jobs:
 </details> 
 
 
-### Options for Pipeline scan baseline
+### Use Pipeline scan baseline
 Pipeline scan provides the ability to use baseline acting as the "approved mitigations" or accepted risk level which instruct the Pipeline Scan to return finding other than the ones in the provided baseline.
 
 It can be useful to re-base the Baseline file after approving a Pull Request 
@@ -778,10 +843,13 @@ jobs:
 ```
 </p>
 </details>
+<br/>
+
+> :bulb: Do not use a baseline file in the Pipeline scan command in order to generate a new baseline file, as the `filtered_results.json` file will not output what is needed as a new baseline file 
 
 
 ### Shared Downloaded Policies for Pipeline Scan
-Pipeline scan today can [download a policy file](https://help.veracode.com/r/Using_Policies_with_the_Pipeline_Scan) based on policies defined in the Veracode Platform. We can subsequently use a downloaded policy as an input to a Pipeline scan as a fail/pass condition - similar to the Upload-and-Scan logic.
+Pipeline scan today can __[download a policy file](https://help.veracode.com/r/Using_Policies_with_the_Pipeline_Scan)__ based on policies defined in the Veracode Platform. We can subsequently use a downloaded policy as an input to a Pipeline scan as a fail/pass condition - similar to the Upload-and-Scan logic.
 
 However, we don't recommended downloading the policy file every time we run a pipeline scan:
 - Policies are rarely changed (compared to the scanned code) 
@@ -937,7 +1005,8 @@ jobs:
           curl https://downloads.veracode.com/securityscan/pipeline-scan-LATEST.zip -o veracode.zip
           unzip veracode.zip
       - name: Get policy file
-        # Leave only the line with the policy relevant to your code in the repository
+        # Remove all import policies which are not relevant to your code and
+        # keep only the line with the policy relevant to your code in the repository
         run: | 
           curl https://raw.githubusercontent.com/lerer-veracode/policies/main/sec/HighlySensitive.json -o policy.json
           curl https://raw.githubusercontent.com/lerer-veracode/policies/main/sec/High.json -o policy.json
@@ -950,5 +1019,14 @@ jobs:
 </p>
 
 </details>
+<br/>
 
 > :bulb: The last example is what you would put in the workflows shared via your organization __`.github`__ repository.
+
+
+## Places to contribute
+
+- SCA Agent Based Action :arrow_right: Create Issues from Vulnerabilities, Licenses, Outdated libraries
+- Generation of Pipeline Scan Baseline file from Static Profile mitigations
+  - Some work was done by Tim Jarrett [here](https://github.com/tjarrettveracode/veracode-pipeline-mitigation) using Python script which can be leveraged
+- Policy/Sandbox scan :arrow_right: Summary report action
