@@ -4,21 +4,20 @@
 
 This page (or manual) incorporate few option which Veracode customers can use to integrate Veracode Scanning solutions within their own workflow processes. 
 
-The following discussed concepts are valid for all CI/CD, however, the examples given here focus on GitHub workflow and unavoidably GitHub Actions implementations.
+The following discussed concepts are valid for most CI solutions, however, the examples given here focus on GitHub workflow and unavoidably GitHub Actions implementations.
 
-## The basic
+## __The basic__ - adding Veracode Security Scanning to workflow
 
-As most integration options, the most basic is integration via script running within the workflows. These script will look very similar to what you would run locally on your PC to do any supported scan types. 
+As most integration options, here are few ways to introduce our different AST scanning options to a workflow.
 
-
-
-### Upload and Scan 
+### Veracode Static Scanning - Upload and Scan 
 #### Script
+
 A basic script using a wrapper is documented __[at Veracode help center](https://help.veracode.com/r/r_uploadandscan)__ and looks as follow:   
 
 `java -jar vosp-api-wrapper-java<version>.jar -action uploadandscan -vid <Veracode API ID> -vkey <Veracode API key> -appname myapp -createprofile true -teams myteam -criticality VeryHigh -sandboxname sandboxA -createsandbox true -version <unique version> -scantimeout 30 -selectedpreviously true -filepath /workspace/myapp.jar`
 
-within a GitHub workflow we will need to download the latest version of the API Wrapper and run the above script.
+To use the above script within a GitHub workflow we will need to download the latest version of the API Wrapper and run the above script.
 <details>
 <summary>See example</summary>
 <p>
@@ -61,11 +60,14 @@ jobs:
 ```
 </p>
 </details>
+<br/>
+
+> :grey_exclamation: The above is good to know, however, it is better to use one of the other options below
 
 #### Pre-built Docker Image
 Veracode released and maintain a set of public Docker Images which are available at __[DockerHub](https://hub.docker.com/u/veracode)__. One of these has the API Wrapper pre-packaged and does not requires the convoluted download script.
 
-An example for such a use can be found here:
+An example using the Docker image use can be found here:
 - [https://github.com/lerer-veracode/verademo-java/blob/test-policy-scan-using-docker/.github/workflows/upload-and-scan.yml](https://github.com/lerer-veracode/verademo-java/blob/test-policy-scan-using-docker/.github/workflows/upload-and-scan.yml)
 
 <details>
@@ -117,7 +119,7 @@ jobs:
 #### GitHub Action
 An easier way to incorporate the upload and scan into a workflow is using Veracode supported __[upload-and-scan GitHub action](https://github.com/marketplace/actions/veracode-upload-and-scan)__
 
-To authoring a workflow with the official action we will use the documentation in the action page
+To write a workflow with the official action we can use the documentation in the action page
 <details>
 <summary>See example</summary>
 <p>
@@ -177,7 +179,7 @@ If you look into the above example, you'll noticed the sandbox name is a fixed n
 An alternative to that is to align the sandbox name with the repository branch name. In order to achieve that we can modify the workflow definition to include a step prior to the scan to save the branch name as an attribute and use it when we submit for scan.
 
 Example workflow:
-- [https://github.com/Lerer/verademo-sarif/blob/master/.github/workflows/veracode-upload-and-scan.yml](https://github.com/Lerer/verademo-sarif/blob/master/.github/workflows/veracode-upload-and-scan.yml)
+- [https://github.com/lerer-veracode/verademo-java/blob/test-policy-scan-using-docker/.github/workflows/upload-and-scan.yml](https://github.com/lerer-veracode/verademo-java/blob/test-policy-scan-using-docker/.github/workflows/upload-and-scan.yml)
 
 <details>
 <summary>Inline example</summary>
@@ -268,7 +270,7 @@ The basic script for Pipeline documented __[at the Veracode help center](https:/
 
 A more advanced and context aware options are documented __[here](https://help.veracode.com/r/r_pipeline_scan_commands)__. 
 
-Within a Github workflow the above scan script will get added as a step right after downloading the latest Pipeline Scan package itself.
+Within a Github workflow we can add the above scan script right after a step to download the latest Pipeline Scan code.
 <details>
 <summary>See example</summary>
 <p>
@@ -532,11 +534,70 @@ Example for such issues can be seen here:
 </details>
 
 ### SCA import findings
-As of now, we don't have an official (or unofficial) __simple__ action to import finding for SCA result - Agent-Based or Upload and Scan.
+Unfortunately, as of now, we don't have an official (or unofficial) __simple__ action to import finding for SCA result - Agent-Based or Upload and Scan.
 
-There is an example below to "break a build" based on SCA findings.
+However here is an example on how to surface SCA finding from Agent-Based SCA scan within a workflow job:
 
-:exclamation: This is a place-holder for future implementation.
+
+<details>
+<summary>Workflow example with parallel Agent-Based and Pipeline Scan</summary>
+<p>
+
+```yaml
+name: Secure with multiple separate jobs
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push where package-lock.json modifies or pull request events
+  push:
+    branches: [test*]
+  pull_request:
+  
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+
+  # The workflow consist of a single job to quickly scan dependencies
+  SCA_Scan:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: SCA Scan
+        env: 
+          SRCCLR_API_TOKEN: ${{ secrets.SRCCLR_API_TOKEN }}
+        run: |
+          git version
+          curl -sSL https://download.sourceclear.com/ci.sh | sh -s -- scan --recursive > veracode-sca-results.txt
+      - name: Check for existing Vulnerabilities
+        id: check-vulnerabilities
+        run: |
+          cat veracode-sca-results.txt
+          TEMP_VULN_EXISTS=$(grep 'Risk Vulnerabilities' veracode-sca-results.txt | awk '{sums += $4} END { test = (sums>0); print test}')
+          TEMP_VULN_SUM=$(grep 'Risk Vulnerabilities' veracode-sca-results.txt | awk '{sums += $4} END { print sums}')
+          echo ::set-output name=fail::$TEMP_VULN_EXISTS
+          echo ::set-output name=sums::$TEMP_VULN_SUM
+      - name: SCA Pass
+        if: ${{ steps.check-vulnerabilities.outputs.fail == 1 }}
+        uses: actions/github-script@v3
+        env:
+          VULN_NUM: ${{ steps.check-vulnerabilities.outputs.sums }}
+        with:
+          script: |
+            console.log(process.env.VULN_NUM);
+            core.setFailed(`Found ${process.env.VULN_NUM} Risk Vulnerabilities in your open source libraries`);
+```
+</p>
+<p align="center">
+  <img src="/media/img/workflow-multi-jobs.png" width="700px" alt="Github workflow summary with multiple jobs"/>
+</p>
+</details>
+<br/>
+
+
+:exclamation: This is a place-holder for further future implementation.
 
 ## Flow Control
 
@@ -576,7 +637,7 @@ We can either create separate workflows or we can create a single flow with sepa
 <details>
 <summary>Example for flaw output with multiple jobs</summary>
 <p align="center">
-  <img src="/media/img/workflow-multi-jobs.png" width="600px" alt="Github workflow summary with multiple jobs"/>
+  <img src="/media/img/workflow-multi-jobs.png" width="700px" alt="Github workflow summary with multiple jobs"/>
 </p>
 </details>
 
