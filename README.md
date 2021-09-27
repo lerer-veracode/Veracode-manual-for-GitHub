@@ -6,9 +6,18 @@ This page (or manual) incorporate few option which Veracode customers can use to
 
 The following discussed concepts are valid for most CI solutions, however, the examples given here focus on GitHub workflow and unavoidably GitHub Actions implementations.
 
+__Few general links to additional Veracode resource collections you may find useful:__
+- As always - use the [Veracode Help Center](https://www.help.veracode.com) when needed
+- [Veracode Community Projects](https://github.com/veracode/Veracode-Community-Projects)
+- [Veracode Official Docker Images](https://hub.docker.com/u/veracode)
+- [Veracode Actions in gitHub Marketplace](https://github.com/marketplace?type=&verification=&query=veracode)
+
+<hr/>
+
 ## __The basic__ - adding Veracode Security Scanning to workflow
 
 As most integration options, here are few ways to introduce our different AST scanning options to a workflow.
+
 
 ### Veracode Static Scanning - Upload and Scan 
 #### Script
@@ -435,6 +444,8 @@ jobs:
 
 > :bulb: The above example script is using a very specific trigger for changes in TypeScript/JavaScript packaging definition file __`package-lock.json`__. Different programming language will require different __`on`__ scan trigger settings.
 
+<hr/>
+
 ## Import Findings
 
 With our different Static scanning, we now have the ability to import the findings using different techniques
@@ -722,6 +733,8 @@ jobs:
 
 :exclamation: This is a place-holder for further future implementation.
 
+<hr/>
+
 ## Flow Control
 
 This section is mostly around utilizing GitHub build-in functionality to implement a desire process. 
@@ -946,6 +959,7 @@ jobs:
 </p>      
 </details> 
 
+<hr/>
 
 ## Scaling in an Organization
 For larger organization who seek more help on how to utilize the above suggestions and ease the onboarding process of their different teams - to encouraging faster and easier adoption of DevSecOps.
@@ -1272,7 +1286,11 @@ jobs:
 
 > :grey_exclamation: It is up to each Organization (or business unit) to define their preferred controls and processes.
 
-## Open for needed contribution
+<hr/>
+
+## How can you help - open for needed contribution
+
+The following list of items are feature which currently don't exist (or, I am not aware of) which would be nice if they will be available as a nicely packaged Action:
 
 - SCA Agent Based Action :arrow_right: Create Issues from Vulnerabilities, Licenses, Outdated libraries
 - Generation of Pipeline Scan Baseline file from Static Profile mitigations
