@@ -1311,3 +1311,5 @@ The following list of items are feature which currently don't exist (or, I am no
   - Some work was done by Tim Jarrett [here](https://github.com/tjarrettveracode/veracode-pipeline-mitigation) using Python script which can be leveraged
 - Policy/Sandbox scan :arrow_right: Summary report action
 - Promote Scan on approved Pull Request Action
+- Clean up of Sandboxes (probably in combination of the above promote option)
+  - There is a Script by [Julian Totzek-Hallhuber](https://github.com/julz0815) which can be leveraged [here](https://github.com/julz0815/VeracodeDeleteSandboxes)
