@@ -1329,7 +1329,7 @@ jobs:
         env:
           VERACODE_API_ID: '${{ secrets.VERACODE_API_ID }}'
           VERACODE_API_SECRET: '${{ secrets.VERACODE_API_SECRET }}'
-        uses: lerer/veracode-sandboxes-helper@master 
+        uses: lerer/veracode-sandboxes-helper@v1 
         with:
           activity: "promote-latest-scan"
           app-name: "<YOUR VERACODE APPLICATION NAME>"
