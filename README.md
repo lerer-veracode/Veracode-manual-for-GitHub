@@ -1294,6 +1294,52 @@ jobs:
 ```
 </p>
 </details>
+
+### What if we do want to automatically promote - on Pull request approval?
+In a scenario which you would like to automatically promote a scan to a policy, you can use the following __[Veracode Application Sandboxes Helper Action](https://github.com/marketplace/actions/veracode-application-sandboxes-helper)__ which allows you to promote a scan from a sandbox to a policy.
+As well, you can use the same GitHub Action to also delete the Sandbox right after the scan was promoted to a Policy (maybe as a clean-up activity)
+
+
+<details>
+<summary>Example for Scan promotion on approved pull request</summary>
+<p>
+
+```yaml
+name: Veracode Static Scan
+
+# Controls when the action will run. 
+on: 
+  pull_request_review: # a trigger when a Pull Request Review submitted
+    types: [submitted]
+        
+  workflow_dispatch:
+
+jobs:
+  veracode-promote-to-policy:
+    runs-on: ubuntu-latest
+    name: Pull Request Review Submitted
+
+    steps:
+
+      ... # your other job steps
+
+      - name: Promote Scan on Approval
+        # run only if the pull request got approved
+        if: ${{ github.event.review.state == 'approved' }}
+        env:
+          VERACODE_API_ID: '${{ secrets.VERACODE_API_ID }}'
+          VERACODE_API_SECRET: '${{ secrets.VERACODE_API_SECRET }}'
+        uses: lerer/veracode-sandboxes-helper@master 
+        with:
+          activity: "promote-latest-scan"
+          app-name: "<YOUR VERACODE APPLICATION NAME>"
+          sandbox-name: "<SANDBOX_NAME>" # "${{ github.event.pull_request.head.ref }}"
+          delete-on-promote: true # Optional: also Deleting the Sandbox 
+  
+  
+```
+</p>
+</details>
 <br/>
 
 > :grey_exclamation: It is up to each Organization (or business unit) to define their preferred controls and processes.
@@ -1310,6 +1356,6 @@ The following list of items are feature which currently don't exist (or, I am no
 - Generation of Pipeline Scan Baseline file from Static Profile mitigations
   - Some work was done by Tim Jarrett [here](https://github.com/tjarrettveracode/veracode-pipeline-mitigation) using Python script which can be leveraged
 - Policy/Sandbox scan :arrow_right: Summary report action
-- Promote Scan on approved Pull Request Action
-- Clean up of Sandboxes (probably in combination of the above promote option)
+- Clean up of dated Sandboxes 
   - There is a Script by [Julian Totzek-Hallhuber](https://github.com/julz0815) which can be leveraged [here](https://github.com/julz0815/VeracodeDeleteSandboxes)
+  - Should be enhancement of [Veracode Application Sandboxes Henlper Action](https://github.com/marketplace/actions/veracode-application-sandboxes-helper)
