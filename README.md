@@ -444,6 +444,47 @@ jobs:
 
 > :bulb: The above example script is using a very specific trigger for changes in TypeScript/JavaScript packaging definition file __`package-lock.json`__. Different programming language will require different __`on`__ scan trigger settings.
 
+#### GitHub Action
+The is an unofficial community authored GitHub Action to run the Agent-Based scan which allows scanning and break build base on finding with specific CVSS
+
+See more details at the GitHub marketplace page of the __[Veracode SCA GitHub Action](https://github.com/marketplace/actions/veracode-software-composition-analysis)__
+
+
+<details>
+<summary>See example</summary>
+<p>
+
+```yaml
+name: Veracode SCA Scan
+
+on: 
+  push:
+    paths-ignore:
+      - "README.md"
+  schedule:
+    - cron: 15 14 * * 6
+
+jobs:
+  veracode-sca-task:
+    runs-on: ubuntu-latest
+    name: Scan repository for Issues
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Run Veracode SCA
+        env:
+          SRCCLR_API_TOKEN: ${{ secrets.SRCCLR_API_TOKEN }}
+        uses: lerer/veracode-sca@v1 
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          quick: true
+          create-issues: false 
+          fail-on-cvss: 3
+```
+</p>      
+</details> 
+
 <hr/>
 
 ## Import Findings
@@ -668,9 +709,9 @@ Example for such issues can be seen here:
 </details>
 
 ### SCA import findings
-Unfortunately, as of now, we don't have an official (or unofficial) __simple__ action to import finding for SCA result - Agent-Based or Upload and Scan.
 
-However here is an __[example](https://github.com/lerer-veracode/verademo-java/blob/test-multi-job/.github/workflows/security_multi_job.yml)__ on how to surface SCA finding from Agent-Based SCA scan within a workflow job.
+#### Agent-Based - result parsing script
+As simple as it get with the Agent-Based, here is an __[example](https://github.com/lerer-veracode/verademo-java/blob/test-multi-job/.github/workflows/security_multi_job.yml)__ on how to surface SCA finding from Agent-Based SCA scan within a workflow job.
 
 
 <details>
@@ -730,12 +771,55 @@ jobs:
 </details>
 <br/>
 
+#### Agent-Based - via GitHub Action to Issues
+With the same __[Veracode Software Composition Analysis GitHub Action](https://github.com/marketplace/actions/veracode-software-composition-analysis)__ mentioned above, you can use the Veracode Agent-based scan and convert the output to GitHub Issues.
+
+
+<details>
+<summary>See example</summary>
+<p>
+
+```yaml
+name: Veracode SCA Scan
+
+on: 
+  push:
+    paths-ignore:
+      - "README.md"
+  schedule:
+    - cron: 15 14 * * 6
+
+jobs:
+  veracode-sca-task:
+    runs-on: ubuntu-latest
+    name: Scan repository for Issues
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Run Veracode SCA
+        env:
+          SRCCLR_API_TOKEN: ${{ secrets.SRCCLR_API_TOKEN }}
+        uses: lerer/veracode-sca@v1 
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          quick: true
+          create-issues: true 
+          fail-on-cvss: 1
+          min-cvss-for-issue: 1
+```
+</p>      
+</details> 
+<br/>
+
+
+Unfortunately, as of now, we don't have an official (or unofficial) __simple__ action to import finding for SCA result - Upload and Scan.
 
 :exclamation: This is a place-holder for further future implementation.
 
 <hr/>
 
-> From [Melvin Conway](https://en.wikipedia.org/wiki/Melvin_Conway) - __"Organizations, who design systems, are constrained to produce designs which are copies of the communication structures of these organizations."__ (Copyright 1968)
+> From [Melvin Conway](https://en.wikipedia.org/wiki/Melvin_Conway) - __"Organizations, who design systems, are constrained to produce designs which are copies of the communication structures of these organizations."__ (Copyright 1967)
 
 I added the above quote as it always pop in my mind when I try to show a workflow and the other side is responding with a variation of: "But, this is not how we do things here...".
 
@@ -1352,7 +1436,7 @@ jobs:
 
 The following list of items are feature which currently don't exist (or, I am not aware of) which would be nice if they will be available as a nicely packaged Action:
 
-- SCA Agent Based Action :arrow_right: Create Issues from Vulnerabilities, Licenses, Outdated libraries
+- Enhance the SCA Agent Based Action to support issues from :arrow_right: Licenses, and Outdated libraries
 - Generation of Pipeline Scan Baseline file from Static Profile mitigations
   - Some work was done by Tim Jarrett [here](https://github.com/tjarrettveracode/veracode-pipeline-mitigation) using Python script which can be leveraged
 - Policy/Sandbox scan :arrow_right: Summary report action
