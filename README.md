@@ -1440,6 +1440,4 @@ The following list of items are feature which currently don't exist (or, I am no
 - Generation of Pipeline Scan Baseline file from Static Profile mitigations
   - Some work was done by Tim Jarrett [here](https://github.com/tjarrettveracode/veracode-pipeline-mitigation) using Python script which can be leveraged
 - Policy/Sandbox scan :arrow_right: Summary report action
-- Clean up of dated Sandboxes 
-  - There is a Script by [Julian Totzek-Hallhuber](https://github.com/julz0815) which can be leveraged [here](https://github.com/julz0815/VeracodeDeleteSandboxes)
-  - Should be enhancement of [Veracode Application Sandboxes Henlper Action](https://github.com/marketplace/actions/veracode-application-sandboxes-helper)
+
