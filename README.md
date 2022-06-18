@@ -1,9 +1,9 @@
-# Veracode manual for GitHub
-
 :exclamation: **This repository is an outdated version. For the most up-to-date version please go the official manual supported by VERACODE**    
         
 **[Official Veracode manual for GitHub](https://github.com/veracode/Veracode-manual-for-GitHub)**       
-        
+     
+     
+# Veracode manual for GitHub      
         
 ## Introduction
 
