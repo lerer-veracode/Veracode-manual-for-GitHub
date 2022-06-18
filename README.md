@@ -1,5 +1,8 @@
 # Veracode manual for GitHub
 
+> **This repository is an outdated version. For the most up-to-date version please go the official manual supported by VERACODE**
+> **[Official Veracode manual for GitHub](https://github.com/veracode/Veracode-manual-for-GitHub)**
+
 ## Introduction
 
 This page (or manual) incorporate few option which Veracode customers can use to integrate Veracode Scanning solutions within their own workflow processes. 
